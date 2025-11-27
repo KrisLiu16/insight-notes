@@ -397,7 +397,6 @@ const App = () => {
 
   const handleSelectNote = (id: string) => {
     setSelectedNoteId(id);
-    setViewMode('edit');
     setIsMobileMenuOpen(false);
   };
 
@@ -418,7 +417,6 @@ const App = () => {
         notes={notes}
         onSelectNote={id => {
           setSelectedNoteId(id);
-          setViewMode('edit');
         }}
       />
 
