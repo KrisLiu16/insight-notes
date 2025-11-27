@@ -80,14 +80,12 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
     const ta = textareaRef.current;
     if (!ta) return;
     const { start, end } = getSelectionRange();
-    const value = ta.value;
-    const next = value.slice(0, start) + text + value.slice(end);
+    ta.setRangeText(text, start, end, 'end');
+    const next = ta.value;
     onUpdateNote(activeNote.id, { content: next, ...extraUpdates });
-    setTimeout(() => {
-      const pos = start + text.length;
-      ta.focus();
-      ta.setSelectionRange(pos, pos);
-    }, 0);
+    const pos = ta.selectionEnd;
+    setSelection({ start: pos, end: pos });
+    ta.focus();
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
