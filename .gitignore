@@ -21,6 +21,7 @@ dist-ssr
 
 # Electron build artifacts
 release
+release-build
 *.exe
 *.dmg
 *.AppImage

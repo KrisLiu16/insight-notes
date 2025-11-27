@@ -50,7 +50,7 @@
     "appId": "com.zhishi.desktop",
     "productName": "Zhishi",
     "directories": {
-      "output": "release",
+      "output": "release-build",
       "buildResources": "resources"
     },
     "files": [
@@ -62,12 +62,13 @@
     "mac": {
       "category": "public.app-category.productivity"
     },
-    "win": {
-      "target": [
-        "nsis",
-        "zip"
-      ]
-    },
+  "win": {
+    "target": [
+      "nsis",
+      "zip"
+    ],
+    "signAndEditExecutable": false
+  },
     "linux": {
       "target": [
         "AppImage",
