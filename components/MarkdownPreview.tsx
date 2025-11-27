@@ -236,6 +236,17 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
           },
           blockquote({ children }) {
             return <blockquote className={`border-l-4 pl-4 py-1 my-4 italic rounded-r-lg ${style.blockquote}`}>{children}</blockquote>;
+          },
+          a({ href = '', children, ...props }) {
+            const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+              e.preventDefault();
+              window.open(href, '_blank', 'noopener,noreferrer');
+            };
+            return (
+              <a href={href} onClick={handleClick} target="_blank" rel="noreferrer" className="underline decoration-slate-300 hover:decoration-current">
+                {children}
+              </a>
+            );
           }
         }}
       >
