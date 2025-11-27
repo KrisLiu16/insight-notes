@@ -20,6 +20,13 @@ if ! command -v cargo >/dev/null 2>&1; then
     exit 1
   fi
 fi
+if ! command -v cc >/dev/null 2>&1; then
+  echo "未检测到 C 编译器 (cc/gcc/clang)。请先安装："
+  echo "  - macOS: xcode-select --install"
+  echo "  - Debian/Ubuntu: sudo apt-get install build-essential"
+  echo "  - Windows MSVC: https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+  exit 1
+fi
 if [ ! -d node_modules ]; then
   echo ">> 安装前端依赖..."
   npm install
