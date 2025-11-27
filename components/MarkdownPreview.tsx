@@ -16,6 +16,7 @@ interface MarkdownPreviewProps {
   content: string;
   attachments?: Record<string, string>;
   theme?: MarkdownTheme;
+  showToc?: boolean;
 }
 
 const CopyButton = ({ text }: { text: string }) => {
@@ -49,7 +50,7 @@ const slugify = (text: string) =>
     .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic' }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true }) => {
   const headings = useMemo(() => {
     const lines = content.split('\n');
     return lines
@@ -195,7 +196,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
 
   return (
     <div className={`relative prose max-w-none prose-headings:font-bold prose-img:rounded-lg markdown-body ${style.prose} ${style.link} ${style.container}`}>
-      {headings.length > 0 && (
+      {showToc && headings.length > 0 && (
         <div className="hidden lg:block absolute left-[-220px] top-0 w-48 text-xs text-slate-500">
           <div className="sticky top-6 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm p-3 space-y-2">
             <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-slate-400">目录</div>
@@ -269,7 +270,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
 
             return !inline && match ? (
               <div className={`relative group my-4 rounded-lg overflow-hidden border shadow-sm ${style.codeBorder}`}>
-                <div className="absolute top-2 right-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-white/90 px-2 py-1 rounded-md border border-slate-200 shadow-sm opacity-0 group-hover:opacity-100 pointer-events-none">
+                <div className="absolute top-2 left-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-white/90 px-2 py-1 rounded-md border border-slate-200 shadow-sm opacity-0 group-hover:opacity-100 pointer-events-none">
                   {language || 'code'}
                 </div>
                 <CopyButton text={codeString} />

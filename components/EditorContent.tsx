@@ -308,7 +308,7 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
               </div>
             )}
             <div className="blog-content">
-              <MarkdownPreview content={activeNote.content} attachments={activeNote.attachments} theme={markdownTheme} />
+              <MarkdownPreview content={activeNote.content} attachments={activeNote.attachments} theme={markdownTheme} showToc={viewMode === 'view'} />
             </div>
           </div>
         </div>

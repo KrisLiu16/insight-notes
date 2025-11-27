@@ -278,7 +278,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
                 {note ? (
                   <div className="p-6 md:p-8">
                     <h1 className="text-3xl font-bold text-slate-900 mb-4">{note.title || '未命名笔记'}</h1>
-                    <MarkdownPreview content={note.content} attachments={note.attachments} theme={theme} />
+                    <MarkdownPreview content={note.content} attachments={note.attachments} theme={theme} showToc={false} />
                   </div>
                 ) : (
                   <div className="p-10 text-center text-slate-400">暂无笔记可预览</div>
