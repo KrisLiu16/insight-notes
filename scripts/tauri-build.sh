@@ -28,9 +28,11 @@ if ! command -v cc >/dev/null 2>&1; then
   elif command -v apt-get >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 build-essential（需要 sudo）..."
     if command -v sudo >/dev/null 2>&1; then
-      sudo apt-get update -y && sudo apt-get install -y build-essential gcc g++ clang
+      sudo apt-get update -y -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true
+      sudo apt-get install -y --allow-unauthenticated build-essential gcc g++ clang || true
     else
-      apt-get update -y && apt-get install -y build-essential gcc g++ clang
+      apt-get update -y -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true
+      apt-get install -y --allow-unauthenticated build-essential gcc g++ clang || true
     fi
   elif command -v dnf >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 Development Tools（需要 sudo）..."
