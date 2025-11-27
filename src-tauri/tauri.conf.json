@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Zhishi",
+  "version": "0.1.0",
+  "identifier": "com.zhishi.app",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3334"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Zhishi",
+        "width": 1280,
+        "height": 800,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "identifier": "com.zhishi.app",
+    "targets": "all"
+  }
+}

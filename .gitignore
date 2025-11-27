@@ -1,0 +1,27 @@
+# Node / Vite
+node_modules
+dist
+dist-ssr
+.eslintcache
+.turbo
+
+# Env / local
+.env
+.env.*
+!.env.example
+
+# Editor
+.DS_Store
+.idea
+*.swp
+*.swo
+*.log
+.vscode/*
+!.vscode/extensions.json
+
+# Tauri
+src-tauri/target
+src-tauri/gen
+
+# Others
+*.local

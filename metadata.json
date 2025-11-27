@@ -1,0 +1,5 @@
+{
+  "name": "智识 (ZhiShi) - 个人AI知识库",
+  "description": "一个优雅的个人知识管理系统，支持Markdown编辑、Mermaid图表、本地持久化存储以及Gemini AI辅助写作与分类。",
+  "requestFramePermissions": []
+}
