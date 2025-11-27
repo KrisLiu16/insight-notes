@@ -122,7 +122,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                     <button
                       key={item.key}
                       onClick={() => setFormData({ ...formData, markdownTheme: item.key as AppSettings['markdownTheme'] })}
-                      className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border text-left transition-all min-w-[120px] ${
+                      className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border text-left transition-all min-w-[150px] ${
                         formData.markdownTheme === item.key
                           ? 'border-blue-300 bg-blue-50 text-blue-700 shadow-sm'
                           : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50/50'
