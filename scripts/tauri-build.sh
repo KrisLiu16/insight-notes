@@ -34,20 +34,34 @@ if ! command -v cc >/dev/null 2>&1; then
       apt-get update -y -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true || true
       apt-get install -y --allow-unauthenticated build-essential gcc g++ clang || true
     fi
+    echo "安装 pkg-config 与 glib 开发包..."
+    if command -v sudo >/dev/null 2>&1; then
+      sudo apt-get install -y --allow-unauthenticated pkg-config libglib2.0-dev || true
+    else
+      apt-get install -y --allow-unauthenticated pkg-config libglib2.0-dev || true
+    fi
   elif command -v dnf >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 Development Tools（需要 sudo）..."
     sudo dnf groupinstall -y "Development Tools" || true
     sudo dnf install -y gcc gcc-c++ clang make || true
+    echo "安装 pkgconf 与 glib2-devel..."
+    sudo dnf install -y pkgconf-pkg-config glib2-devel || true
   elif command -v yum >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 Development Tools（需要 sudo）..."
     sudo yum groupinstall -y "Development Tools" || true
     sudo yum install -y gcc gcc-c++ clang make || true
+    echo "安装 pkgconfig 与 glib2-devel..."
+    sudo yum install -y pkgconfig glib2-devel || true
   elif command -v pacman >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 base-devel（需要 sudo）..."
     sudo pacman -Syu --noconfirm base-devel gcc clang || true
+    echo "安装 pkgconf 与 glib2..."
+    sudo pacman -S --noconfirm pkgconf glib2 || true
   elif command -v apk >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 build-base（需要 root/sudo）..."
     sudo apk add --no-cache build-base gcc g++ clang || true
+    echo "安装 pkgconfig 与 glib-dev..."
+    sudo apk add --no-cache pkgconfig glib-dev || true
   else
     echo "未检测到 C 编译器 (cc/gcc/clang)，且无法自动安装。"
     echo "请手动安装："
