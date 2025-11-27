@@ -287,7 +287,11 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
             ${viewMode === 'edit' ? 'w-0 hidden' : ''}
           `}
         >
-          <div className={`max-w-3xl mx-auto min-h-full ${viewMode === 'split' ? 'p-6 md:p-8' : 'p-8 md:p-16'}`}>
+          <div
+            className={`${viewMode === 'view' ? 'max-w-6xl lg:max-w-5xl md:max-w-4xl' : 'max-w-3xl'} mx-auto min-h-full ${
+              viewMode === 'split' ? 'p-6 md:p-8' : 'p-8 md:p-16'
+            }`}
+          >
             {viewMode === 'view' && (
               <div className="mb-10 text-center border-b border-slate-100 pb-8">
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight leading-tight">{activeNote.title}</h1>
