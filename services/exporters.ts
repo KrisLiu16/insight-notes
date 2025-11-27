@@ -29,6 +29,16 @@ const baseCss = `
 `;
 
 const themeCss: Record<MarkdownTheme, string> = {
+  feishu: `
+    body { background: #f7f9fb; color: #1f2937; font-family: 'Lato','Inter','PingFang SC','Microsoft YaHei',sans-serif; }
+    a { color: #2563eb; text-decoration: none; }
+    pre { background: #f6f8fa; border: 1px solid #e2e8f0; color: #0f172a; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    table { border: 1px solid #e2e8f0; }
+    th { background: #f8fafc; color: #475569; text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; }
+    td { border-top: 1px solid #e2e8f0; color: #475569; }
+    blockquote { background: #eff6ff; border-color: #3b82f6; color: #1f2937; }
+  `,
   classic: `
     body { background: #f8fafc; color: #0f172a; }
     a { color: #2563eb; }

@@ -41,7 +41,7 @@ const EmptyState: React.FC<{ onCreateNote: () => void }> = ({ onCreateNote }) =>
 
 const App = () => {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({ apiKey: '', markdownTheme: 'classic' });
+  const [settings, setSettings] = useState<AppSettings>({ apiKey: '', markdownTheme: 'feishu' });
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');

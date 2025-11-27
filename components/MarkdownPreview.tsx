@@ -42,9 +42,23 @@ const CopyButton = ({ text }: { text: string }) => {
   );
 };
 
-const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic' }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'feishu' }) => {
   const themeStyles = useMemo(
     () => ({
+      feishu: {
+        prose: 'prose-slate',
+        codeStyle: oneLight,
+        codeBg: '#f6f8fa',
+        blockquote: 'border-blue-400 bg-blue-50/60 text-slate-800',
+        tableHeader: 'bg-slate-50 text-slate-600',
+        tableCell: 'text-slate-700 border-slate-200',
+        container: 'bg-white p-6 rounded-2xl border border-slate-200 shadow-sm',
+        link: 'prose-a:text-blue-600 prose-a:no-underline',
+        tableBorder: 'border-slate-200 divide-slate-200',
+        codeBorder: 'border border-slate-200 bg-[#f6f8fa]',
+        copyBg: 'bg-white/80',
+        inlineCode: 'bg-slate-100 text-slate-800 border border-slate-200/70',
+      },
       classic: {
         prose: 'prose-slate',
         codeStyle: oneLight,
@@ -202,7 +216,10 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
                   style={style.codeStyle}
                   language={language}
                   PreTag="div"
-                  customStyle={{ margin: 0, borderRadius: 0, backgroundColor: style.codeBg }}
+                  showLineNumbers
+                  wrapLongLines
+                  lineNumberStyle={{ color: '#94a3b8', fontSize: '12px', paddingRight: '12px' }}
+                  customStyle={{ margin: 0, borderRadius: 0, backgroundColor: style.codeBg, fontSize: '13px', padding: '18px' }}
                   {...props}
                 >
                   {codeString}
