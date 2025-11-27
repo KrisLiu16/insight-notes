@@ -21,7 +21,7 @@
   },
   "bundle": {
     "active": true,
-    "identifier": "com.zhishi.app",
-    "targets": "all"
+    "targets": ["app", "dmg", "msi", "nsis", "appimage", "deb"],
+    "icon": []
   }
 }
