@@ -40,6 +40,14 @@ if ! command -v cc >/dev/null 2>&1; then
     else
       apt-get install -y --allow-unauthenticated pkg-config libglib2.0-dev || true
     fi
+    if ! command -v pkg-config >/dev/null 2>&1; then
+      echo "重试安装 pkg-config/libglib2.0-dev（忽略更新错误）..."
+      if command -v sudo >/dev/null 2>&1; then
+        sudo apt-get install -y --allow-unauthenticated pkg-config libglib2.0-dev || true
+      else
+        apt-get install -y --allow-unauthenticated pkg-config libglib2.0-dev || true
+      fi
+    fi
   elif command -v dnf >/dev/null 2>&1; then
     echo "未检测到 C 编译器，自动安装 Development Tools（需要 sudo）..."
     sudo dnf groupinstall -y "Development Tools" || true
