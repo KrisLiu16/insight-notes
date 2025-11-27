@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, shell } from 'electron';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -7,9 +8,18 @@ const DIST_PATH = path.join(__dirname, '..', 'dist', 'index.html');
 
 const createWindow = () => {
   const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
-  const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, iconFile)
-    : path.join(__dirname, '..', 'resources', iconFile);
+  const resolveIconPath = () => {
+    // When packaged, icon files live next to app.asar (extraResources) or under resources/.
+    const packagedCandidates = [
+      path.join(process.resourcesPath, iconFile),
+      path.join(process.resourcesPath, 'resources', iconFile),
+    ];
+    const devCandidate = path.join(__dirname, '..', 'resources', iconFile);
+    const candidates = app.isPackaged ? packagedCandidates : [devCandidate];
+    return candidates.find(p => fs.existsSync(p)) || devCandidate;
+  };
+
+  const iconPath = resolveIconPath();
 
   const win = new BrowserWindow({
     width: 1280,
