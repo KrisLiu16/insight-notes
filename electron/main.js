@@ -6,9 +6,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_PATH = path.join(__dirname, '..', 'dist', 'index.html');
 
 const createWindow = () => {
+  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'icon.png')
-    : path.join(__dirname, '..', 'resources', 'icon.png');
+    ? path.join(process.resourcesPath, iconFile)
+    : path.join(__dirname, '..', 'resources', iconFile);
 
   const win = new BrowserWindow({
     width: 1280,
