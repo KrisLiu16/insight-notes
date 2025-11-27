@@ -26,6 +26,6 @@ release-build
 *.dmg
 *.AppImage
 *.deb
-
+AGENTS.md
 # Others
 *.local
