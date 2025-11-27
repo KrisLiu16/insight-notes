@@ -9,8 +9,20 @@ cd "$ROOT_DIR"
 
 echo ">> 确认依赖安装..."
 if ! command -v cargo >/dev/null 2>&1; then
-  echo "未检测到 Rust/cargo，请先安装 https://www.rust-lang.org/tools/install"
-  exit 1
+  if [ "${AUTO_INSTALL_DEPS}" = "1" ]; then
+    echo "未检测到 cargo，自动安装 Rust (rustup)..."
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    # shellcheck source=/dev/null
+    source "$HOME/.cargo/env"
+  else
+    echo "未检测到 Rust/cargo，请安装后重试，或执行 AUTO_INSTALL_DEPS=1 $0 自动安装。"
+    echo "安装指令: curl https://sh.rustup.rs -sSf | sh -s -- -y"
+    exit 1
+  fi
+fi
+if [ ! -d node_modules ]; then
+  echo ">> 安装前端依赖..."
+  npm install
 fi
 if ! npx tauri -h >/dev/null 2>&1; then
   echo "安装 tauri cli..."

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { ArrowRight, Loader2, MessageSquare, X } from 'lucide-react';
+import { ArrowRight, Clipboard, Loader2, MessageSquare, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -104,13 +106,61 @@ const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 </div>
               )}
               <div
-                className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-lg ${
+                className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg relative group ${
                   msg.role === 'assistant'
                     ? 'bg-white/95 border border-slate-100 text-slate-800 shadow-slate-200/70 backdrop-blur-sm'
-                    : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-blue-500/30'
+                    : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-blue-500/30 whitespace-pre-wrap'
                 }`}
               >
-                {msg.content}
+                {msg.role === 'assistant' ? (
+                  <>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(msg.content)}
+                      className="absolute -top-3 -right-3 hidden group-hover:flex items-center gap-1 text-[10px] px-2 py-1 rounded-full bg-slate-900 text-white shadow-lg"
+                      title="复制 Markdown 源码"
+                    >
+                      <Clipboard size={12} /> 复制
+                    </button>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({ node, inline, className, children, ...props }: any) {
+                          const language = /language-(\w+)/.exec(className || '')?.[1];
+                          if (!inline && language === 'mermaid') {
+                            return <pre className="bg-slate-100 text-slate-800 rounded-lg p-3 text-xs whitespace-pre-wrap">{children}</pre>;
+                          }
+                          return inline ? (
+                            <code className="bg-slate-100 text-slate-800 px-1 rounded">{children}</code>
+                          ) : (
+                            <pre className="bg-slate-100 text-slate-800 rounded-lg p-3 text-xs whitespace-pre-wrap" {...props}>
+                              {children}
+                            </pre>
+                          );
+                        },
+                        a({ children, ...props }) {
+                          return (
+                            <a {...props} className="text-blue-600 underline" target="_blank" rel="noreferrer">
+                              {children}
+                            </a>
+                          );
+                        },
+                        ul({ children }) {
+                          return <ul className="list-disc list-inside space-y-1">{children}</ul>;
+                        },
+                        ol({ children }) {
+                          return <ol className="list-decimal list-inside space-y-1">{children}</ol>;
+                        },
+                        li({ children }) {
+                          return <li className="leading-relaxed">{children}</li>;
+                        },
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </>
+                ) : (
+                  msg.content
+                )}
               </div>
               {msg.role === 'user' && (
                 <div className="w-10 h-10 rounded-2xl bg-white text-slate-700 flex items-center justify-center font-semibold shadow-lg border border-slate-200">你</div>
