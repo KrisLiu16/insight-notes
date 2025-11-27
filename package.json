@@ -40,6 +40,7 @@
     "autoprefixer": "^10.4.22",
     "electron": "^30.0.9",
     "electron-builder": "^25.1.8",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
@@ -49,7 +50,7 @@
   "build": {
     "appId": "com.zhishi.desktop",
     "productName": "Zhishi",
-    "icon": "resources/icon.png",
+    "icon": "resources/icon.ico",
     "directories": {
       "output": "release",
       "buildResources": "resources"
@@ -63,13 +64,13 @@
     "mac": {
       "category": "public.app-category.productivity"
     },
-  "win": {
-    "target": [
-      "nsis",
-      "zip"
-    ],
-    "signAndEditExecutable": false
-  },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "signAndEditExecutable": false
+    },
     "linux": {
       "target": [
         "AppImage",
