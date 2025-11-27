@@ -14,7 +14,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron:dev": "npm run build && electron .",
-    "electron:build": "node scripts/clean-release.js && npm run build && electron-builder"
+    "electron:build": "node scripts/clean-release.js && npm run icon:generate && npm run build && electron-builder",
+    "icon:generate": "node scripts/generate-icon.js"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
