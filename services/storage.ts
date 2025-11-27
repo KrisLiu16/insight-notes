@@ -58,10 +58,11 @@ export const loadSettings = (): AppSettings => {
             userName: '知识探索者',
             customAnalyzePrompt: DEFAULT_ANALYZE_PROMPT,
             customPolishPrompt: DEFAULT_POLISH_PROMPT,
-            markdownTheme: 'feishu',
+            markdownTheme: 'classic',
         };
     }
     const parsed = JSON.parse(data);
+    const theme = parsed.markdownTheme === 'feishu' ? 'classic' : parsed.markdownTheme;
     // Ensure defaults exist for older saved versions or missing fields
     return {
         ...parsed,
@@ -69,11 +70,11 @@ export const loadSettings = (): AppSettings => {
         model: parsed.model || DEFAULT_MODEL,
         customAnalyzePrompt: parsed.customAnalyzePrompt || DEFAULT_ANALYZE_PROMPT,
         customPolishPrompt: parsed.customPolishPrompt || DEFAULT_POLISH_PROMPT,
-        markdownTheme: parsed.markdownTheme || 'feishu',
+        markdownTheme: theme || 'classic',
     };
   } catch (error) {
     console.error('Failed to load settings', error);
-    return { apiKey: '', baseUrl: DEFAULT_BASE_URL, model: DEFAULT_MODEL, markdownTheme: 'feishu' };
+    return { apiKey: '', baseUrl: DEFAULT_BASE_URL, model: DEFAULT_MODEL, markdownTheme: 'classic' };
   }
 };
 

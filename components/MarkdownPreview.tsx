@@ -49,7 +49,7 @@ const slugify = (text: string) =>
     .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'feishu' }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic' }) => {
   const headings = useMemo(() => {
     const lines = content.split('\n');
     return lines
@@ -65,7 +65,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
 
   const themeStyles = useMemo(
     () => ({
-      feishu: {
+      classic: {
         prose: 'prose-slate',
         codeStyle: oneLight,
         codeBg: '#f6f8fa',
@@ -78,20 +78,6 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
         codeBorder: 'border border-slate-200 bg-[#f6f8fa]',
         copyBg: 'bg-white/80',
         inlineCode: 'bg-slate-100 text-slate-800 border border-slate-200/70',
-      },
-      classic: {
-        prose: 'prose-slate',
-        codeStyle: oneLight,
-        codeBg: '#f8fafc',
-        blockquote: 'border-blue-500 bg-blue-50/30 text-slate-700',
-        tableHeader: 'bg-slate-50 text-slate-500',
-        tableCell: 'text-slate-600 border-slate-100',
-        container: '',
-        link: 'prose-a:text-blue-600',
-        tableBorder: 'border-slate-200 divide-slate-200',
-        codeBorder: 'border border-slate-200',
-        copyBg: 'bg-white/80',
-        inlineCode: 'bg-slate-100 text-slate-700 border border-slate-200/60',
       },
       serif: {
         prose: 'prose-stone prose-h1:font-serif prose-h2:font-serif prose-h3:font-serif prose-p:font-serif',

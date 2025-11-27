@@ -41,7 +41,7 @@ const EmptyState: React.FC<{ onCreateNote: () => void }> = ({ onCreateNote }) =>
 
 const App = () => {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [settings, setSettings] = useState<AppSettings>({ apiKey: '', markdownTheme: 'feishu' });
+  const [settings, setSettings] = useState<AppSettings>({ apiKey: '', markdownTheme: 'classic' });
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -75,7 +75,7 @@ const App = () => {
         e.preventDefault();
         setLastSaved(Date.now());
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         setIsExportOpen(true);
       }
@@ -113,6 +113,8 @@ const App = () => {
 
 - \`Cmd/Ctrl + K\`: 全局搜索
 - \`Cmd/Ctrl + S\`: 保存
+- \`Cmd/Ctrl + Shift + P\`: 打开导出
+- \`Cmd/Ctrl + Enter\`: AI 润色
 
 ## 布局切换
 

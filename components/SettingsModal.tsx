@@ -110,8 +110,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { key: 'feishu', label: '飞书风格', desc: '简洁白底、代码行号' },
-                    { key: 'classic', label: '经典', desc: '浅色、卡片阴影' },
+                    { key: 'classic', label: '经典', desc: '简洁白底、代码行号' },
                     { key: 'serif', label: '书卷', desc: '衬线、纸感背景' },
                     { key: 'pastel', label: '柔彩', desc: '粉彩渐变、轻盈' },
                     { key: 'paper', label: '纸质', desc: '书本纸张、复古' },

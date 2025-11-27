@@ -15,7 +15,7 @@ export interface Category {
   count: number;
 }
 
-export type MarkdownTheme = 'feishu' | 'classic' | 'serif' | 'night' | 'pastel' | 'paper' | 'contrast' | 'mono' | 'terminal';
+export type MarkdownTheme = 'classic' | 'serif' | 'night' | 'pastel' | 'paper' | 'contrast' | 'mono' | 'terminal';
 
 export interface AppSettings {
   apiKey: string;
