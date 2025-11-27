@@ -4,6 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "main": "electron/main.js",
+  "author": {
+    "name": "Kris",
+    "email": "kris@example.com"
+  },
+  "description": "Zhishi - AI powered note app with markdown, Mermaid, KaTeX, multi-theme and exports",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
