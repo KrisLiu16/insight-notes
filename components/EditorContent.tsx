@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, CheckSquare, Clipboard, Clock, FileText, Heading2, Image, ListTodo, Minus, Quote, Sigma, Table } from 'lucide-react';
+import { Check, CheckSquare, Clipboard, Clock, FileText, Heading2, Image, ListTodo, Minus, Quote } from 'lucide-react';
 import { MarkdownTheme, Note, NoteStats, ViewMode } from '../types';
 import TagEditor from './TagEditor';
 import MarkdownPreview from './MarkdownPreview';
@@ -166,6 +166,33 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
     }
   };
 
+  const pasteFromClipboard = async () => {
+    updateSelection();
+    try {
+      if ((navigator.clipboard as any)?.read) {
+        const items = await (navigator.clipboard as any).read();
+        const imageItem = items.find((it: any) => it.types.some((t: string) => t.startsWith('image/')));
+        if (imageItem) {
+          const type = imageItem.types.find((t: string) => t.startsWith('image/'));
+          const blob = await imageItem.getType(type);
+          const file = new File([blob], `pasted-${Date.now()}.png`, { type: blob.type });
+          await insertImageFile(file);
+          setInsertHint('已从剪贴板插入图片');
+          setTimeout(() => setInsertHint(''), 2000);
+          return;
+        }
+      }
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) insertTextAtSelection(text);
+      }
+    } catch (err) {
+      console.error('Paste via menu failed', err);
+    } finally {
+      setContextMenu(prev => ({ ...prev, visible: false }));
+    }
+  };
+
   const menuItems = [
     {
       label: '复制选中',
@@ -174,39 +201,46 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
       disabled: selection.start === selection.end,
     },
     {
+      label: '粘贴',
+      icon: <Clipboard size={14} />,
+      onClick: pasteFromClipboard,
+      disabled: isReadOnly,
+    },
+    {
       label: '插入图片',
       icon: <Image size={14} />,
       onClick: triggerImagePicker,
+      disabled: isReadOnly,
     },
     {
       label: '插入标题 H2',
       icon: <Heading2 size={14} />,
       onClick: () => insertSnippet('## '),
+      disabled: isReadOnly,
     },
     {
       label: '插入待办列表',
       icon: <ListTodo size={14} />,
       onClick: () => insertSnippet('- [ ] '),
+      disabled: isReadOnly,
     },
     {
       label: '插入引用',
       icon: <Quote size={14} />,
       onClick: () => insertSnippet('> '),
+      disabled: isReadOnly,
     },
     {
       label: '插入分隔线',
       icon: <Minus size={14} />,
       onClick: () => insertSnippet('\n\n---\n\n'),
+      disabled: isReadOnly,
     },
     {
       label: '插入复选框',
       icon: <CheckSquare size={14} />,
       onClick: () => insertSnippet('- [ ] '),
-    },
-    {
-      label: '插入表格',
-      icon: <Table size={14} />,
-      onClick: () => insertSnippet('| 列1 | 列2 |\n| --- | --- |\n| 内容 | 内容 |\n'),
+      disabled: isReadOnly,
     },
   ];
 
