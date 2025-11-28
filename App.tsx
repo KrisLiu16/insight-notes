@@ -177,14 +177,13 @@ Happy writing!`,
       setCurrentNote(null);
       return;
     }
-    const currentKey = currentNote ? snapshotKey(currentNote) : '';
     const targetKey = snapshotKey(target);
-    if (currentNote && currentNote.id === target.id && currentKey === targetKey) return;
+    if (currentNote && currentNote.id === target.id && snapshotKey(currentNote) === targetKey) return;
     setCurrentNote(target);
     setHistory([target]);
     setHistoryIndex(0);
     lastSnapshotKeyRef.current = targetKey;
-  }, [selectedNoteId, notes, currentNote]);
+  }, [selectedNoteId, notes]);
 
   const filteredNotes = useMemo(() => {
     let result = [...notes];
