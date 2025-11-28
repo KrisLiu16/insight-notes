@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Menu, Plus } from 'lucide-react';
 import { AppSettings, Note, NoteStats, ViewMode } from './types';
 import { generateId, loadNotes, loadSettings, saveNotes, saveSettings } from './services/storage';
@@ -42,6 +42,7 @@ const EmptyState: React.FC<{ onCreateNote: () => void }> = ({ onCreateNote }) =>
 const App = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ apiKey: '', markdownTheme: 'classic' });
+  const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -66,6 +67,11 @@ const App = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const saveTimerRef = useRef<number | null>(null);
+  const historyTimerRef = useRef<number | null>(null);
+  const lastSnapshotKeyRef = useRef<string>('');
+  const snapshotKey = (note: Note) =>
+    `${note.id}|${note.title}|${note.content}|${note.category || ''}|${(note.tags || []).join(',')}|${Object.keys(note.attachments || {}).length}`;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -151,11 +157,37 @@ Happy writing!`,
       setNotes([welcomeNote]);
       saveNotes([welcomeNote]);
       setSelectedNoteId(welcomeNote.id);
+      setCurrentNote(welcomeNote);
+      setHistory([welcomeNote]);
+      setHistoryIndex(0);
+      lastSnapshotKeyRef.current = snapshotKey(welcomeNote);
     }
   }, []);
 
+  useEffect(() => {
+    if (!selectedNoteId) {
+      setCurrentNote(null);
+      setHistory([]);
+      setHistoryIndex(-1);
+      lastSnapshotKeyRef.current = '';
+      return;
+    }
+    const target = notes.find(n => n.id === selectedNoteId);
+    if (!target) {
+      setCurrentNote(null);
+      return;
+    }
+    const currentKey = currentNote ? snapshotKey(currentNote) : '';
+    const targetKey = snapshotKey(target);
+    if (currentNote && currentNote.id === target.id && currentKey === targetKey) return;
+    setCurrentNote(target);
+    setHistory([target]);
+    setHistoryIndex(0);
+    lastSnapshotKeyRef.current = targetKey;
+  }, [selectedNoteId, notes, currentNote]);
+
   const filteredNotes = useMemo(() => {
-    let result = notes;
+    let result = [...notes];
     if (selectedCategory !== 'all') {
       result = selectedCategory === 'uncategorized' ? result.filter(n => !n.category) : result.filter(n => n.category === selectedCategory);
     }
@@ -176,7 +208,7 @@ Happy writing!`,
     return Array.from(cats).sort();
   }, [notes]);
 
-  const activeNote = useMemo(() => notes.find(n => n.id === selectedNoteId), [notes, selectedNoteId]);
+  const activeNote = currentNote;
 
   const stats: NoteStats = useMemo(() => {
     if (!activeNote) return { words: 0, chars: 0, readingTime: 0 };
@@ -208,30 +240,69 @@ Happy writing!`,
     setNotes(updatedNotes);
     saveNotes(updatedNotes);
     setSelectedNoteId(newNote.id);
+    setCurrentNote(newNote);
     setViewMode('edit');
     if (window.innerWidth < 768) setIsMobileMenuOpen(false);
 
-    // history reset
-    setHistory([]);
-    setHistoryIndex(-1);
+    setHistory([newNote]);
+    setHistoryIndex(0);
+    lastSnapshotKeyRef.current = snapshotKey(newNote);
   };
 
   const handleUpdateNote = (id: string, updates: Partial<Note>) => {
-    const updatedNotes = notes.map(n => (n.id === id ? { ...n, ...updates, updatedAt: Date.now() } : n));
-    setNotes(updatedNotes);
-    saveNotes(updatedNotes);
-    setLastSaved(Date.now());
-
-    // push to history
-    const active = updatedNotes.find(n => n.id === id);
-    if (active) {
-      const snapshot = JSON.parse(JSON.stringify(active)) as Note;
-      const nextHistory = history.slice(0, historyIndex + 1).concat(snapshot);
-      const trimmed = nextHistory.slice(-30); // cap history size
-      setHistory(trimmed);
-      setHistoryIndex(trimmed.length - 1);
-    }
+    setCurrentNote(prev => {
+      if (!prev || prev.id !== id) return prev;
+      const next = { ...prev, ...updates, updatedAt: Date.now() };
+      return next;
+    });
   };
+
+  useEffect(() => {
+    if (!currentNote) return;
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = window.setTimeout(() => {
+      setNotes(prev => {
+        const idx = prev.findIndex(n => n.id === currentNote.id);
+        const updated = idx === -1 ? [currentNote, ...prev] : prev.map(n => (n.id === currentNote.id ? currentNote : n));
+        const sorted = [...updated].sort((a, b) => b.updatedAt - a.updatedAt);
+        saveNotes(sorted);
+        return sorted;
+      });
+      setLastSaved(Date.now());
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [currentNote]);
+
+  useEffect(() => {
+    if (!currentNote) return;
+    if (historyTimerRef.current) {
+      window.clearTimeout(historyTimerRef.current);
+    }
+    historyTimerRef.current = window.setTimeout(() => {
+      const key = snapshotKey(currentNote);
+      if (key === lastSnapshotKeyRef.current) return;
+      const snapshot = { ...currentNote };
+      setHistory(prev => {
+        const next = prev.slice(0, historyIndex + 1).concat(snapshot);
+        const trimmed = next.slice(-30); // cap history size
+        setHistoryIndex(trimmed.length - 1);
+        return trimmed;
+      });
+      lastSnapshotKeyRef.current = key;
+    }, 1200);
+
+    return () => {
+      if (historyTimerRef.current) {
+        window.clearTimeout(historyTimerRef.current);
+      }
+    };
+  }, [currentNote, historyIndex]);
 
   const deleteNote = (id: string) => {
     let nextId = selectedNoteId;
@@ -286,8 +357,9 @@ Happy writing!`,
     const prevIndex = historyIndex - 1;
     const prev = history[prevIndex];
     if (!prev) return;
-    handleUpdateNote(activeNote.id, { content: prev.content, title: prev.title, category: prev.category, tags: prev.tags, attachments: prev.attachments });
     setHistoryIndex(prevIndex);
+    lastSnapshotKeyRef.current = snapshotKey(prev);
+    setCurrentNote({ ...prev });
   };
 
   const redoNote = () => {
@@ -295,8 +367,9 @@ Happy writing!`,
     const nextIndex = historyIndex + 1;
     const next = history[nextIndex];
     if (!next) return;
-    handleUpdateNote(activeNote.id, { content: next.content, title: next.title, category: next.category, tags: next.tags, attachments: next.attachments });
     setHistoryIndex(nextIndex);
+    lastSnapshotKeyRef.current = snapshotKey(next);
+    setCurrentNote({ ...next });
   };
 
   const handleCopyContent = () => {
@@ -408,10 +481,19 @@ Happy writing!`,
   };
 
   const handleExportData = async () => {
+    const mergedNotes = currentNote
+      ? (() => {
+          const idx = notes.findIndex(n => n.id === currentNote.id);
+          if (idx === -1) return [currentNote, ...notes];
+          const clone = [...notes];
+          clone[idx] = currentNote;
+          return clone;
+        })()
+      : notes;
     const payload = {
       version: 'zhishi-v1',
       exportedAt: new Date().toISOString(),
-      notes,
+      notes: mergedNotes,
       settings,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -426,11 +508,16 @@ Happy writing!`,
         if (!parsed.notes || !Array.isArray(parsed.notes)) throw new Error('缺少 notes 字段');
         if (!parsed.settings || typeof parsed.settings !== 'object') throw new Error('缺少 settings 字段');
 
+        const firstNote = parsed.notes[0] || null;
         setNotes(parsed.notes);
         saveNotes(parsed.notes);
         setSettings(parsed.settings);
         saveSettings(parsed.settings);
-        setSelectedNoteId(parsed.notes[0]?.id || null);
+        setSelectedNoteId(firstNote?.id || null);
+        setCurrentNote(firstNote);
+        setHistory(firstNote ? [firstNote] : []);
+        setHistoryIndex(firstNote ? 0 : -1);
+        lastSnapshotKeyRef.current = firstNote ? snapshotKey(firstNote) : '';
         setIsSettingsOpen(false);
         alert('导入完成，当前数据已被覆盖');
       } catch (err: any) {
@@ -535,16 +622,16 @@ Happy writing!`,
                 onToggleNoteList={() => setIsNoteListOpen(true)}
                 onBack={() => setSelectedNoteId(null)}
                 onTitleChange={value => handleUpdateNote(activeNote.id, { title: value })}
-        onChangeViewMode={mode => setViewMode(mode)}
-        onAnalyze={handleAiAnalyze}
-        onPolish={handleAiPolish}
-        onCopy={handleCopyContent}
-        onExport={() => setIsExportOpen(true)}
-        onToggleChat={() => setIsChatOpen(v => !v)}
-        onToggleReadOnly={() => setIsReadOnly(v => !v)}
-        onUndo={undoNote}
-        onRedo={redoNote}
-      />
+                onChangeViewMode={mode => setViewMode(mode)}
+                onAnalyze={handleAiAnalyze}
+                onPolish={handleAiPolish}
+                onCopy={handleCopyContent}
+                onExport={() => setIsExportOpen(true)}
+                onToggleChat={() => setIsChatOpen(v => !v)}
+                onToggleReadOnly={() => setIsReadOnly(v => !v)}
+                onUndo={undoNote}
+                onRedo={redoNote}
+              />
               <EditorContent
                 activeNote={activeNote}
                 viewMode={viewMode}

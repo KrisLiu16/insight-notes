@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useDeferredValue, useMemo, useState } from 'react';
 import ReactMarkdown, { UrlTransform, defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -51,8 +51,9 @@ const slugify = (text: string) =>
     .replace(/^-+|-+$/g, '');
 
 const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true }) => {
+  const deferredContent = useDeferredValue(content);
   const headings = useMemo(() => {
-    const lines = content.split('\n');
+    const lines = deferredContent.split('\n');
     return lines
       .map(line => {
         const match = /^(#{1,6})\s+(.+)$/.exec(line);
@@ -62,7 +63,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
         return { level, text, id: slugify(text) };
       })
       .filter(Boolean) as { level: number; text: string; id: string }[];
-  }, [content]);
+  }, [deferredContent]);
 
   const themeStyles = useMemo(
     () => ({
@@ -351,7 +352,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
           }
         }}
       >
-        {content}
+        {deferredContent}
       </ReactMarkdown>
     </div>
   );

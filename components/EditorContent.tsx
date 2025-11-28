@@ -21,6 +21,7 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [insertHint, setInsertHint] = useState<string>('');
+  const [previewContent, setPreviewContent] = useState(activeNote.content);
 
   const attachmentsSize = useMemo(() => {
     if (!activeNote.attachments) return 0;
@@ -32,6 +33,15 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
     window.addEventListener('click', hideMenu);
     return () => window.removeEventListener('click', hideMenu);
   }, []);
+
+  useEffect(() => {
+    setPreviewContent(activeNote.content);
+  }, [activeNote.id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewContent(activeNote.content), 220);
+    return () => window.clearTimeout(timer);
+  }, [activeNote.content]);
 
   const updateSelection = () => {
     const ta = textareaRef.current;
@@ -294,44 +304,45 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
           />
         </div>
 
-        <div
-          ref={previewRef}
-          className={`
-            h-full overflow-y-auto custom-scrollbar bg-white transition-all duration-300 ease-in-out
-            ${viewMode === 'view' ? 'w-full' : ''}
-            ${viewMode === 'split' ? 'w-1/2 bg-slate-50/30' : ''}
-            ${viewMode === 'edit' ? 'w-0 hidden' : ''}
-          `}
-        >
+        {viewMode !== 'edit' && (
           <div
-            className={`${viewMode === 'view' ? 'max-w-6xl lg:max-w-5xl md:max-w-4xl' : 'max-w-3xl'} mx-auto min-h-full ${
-              viewMode === 'split' ? 'p-6 md:p-8' : 'p-8 md:p-16'
-            }`}
+            ref={previewRef}
+            className={`
+              h-full overflow-y-auto custom-scrollbar bg-white transition-all duration-300 ease-in-out
+              ${viewMode === 'view' ? 'w-full' : ''}
+              ${viewMode === 'split' ? 'w-1/2 bg-slate-50/30' : ''}
+            `}
           >
-            {viewMode === 'view' && (
-              <div className="mb-10 text-center border-b border-slate-100 pb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight leading-tight">{activeNote.title}</h1>
-                <div className="flex items-center justify-center gap-4 text-sm text-slate-500 font-medium">
-                  <span className="bg-slate-100 px-3 py-1 rounded-full">{activeNote.category || '随笔'}</span>
-                  <span>·</span>
-                  <span>{new Date(activeNote.updatedAt).toLocaleDateString()}</span>
-                </div>
-                {activeNote.tags.length > 0 && (
-                  <div className="flex justify-center gap-2 mt-4">
-                    {activeNote.tags.map(tag => (
-                      <span key={tag} className="text-blue-600 text-xs">
-                        #{tag}
-                      </span>
-                    ))}
+            <div
+              className={`${viewMode === 'view' ? 'max-w-6xl lg:max-w-5xl md:max-w-4xl' : 'max-w-3xl'} mx-auto min-h-full ${
+                viewMode === 'split' ? 'p-6 md:p-8' : 'p-8 md:p-16'
+              }`}
+            >
+              {viewMode === 'view' && (
+                <div className="mb-10 text-center border-b border-slate-100 pb-8">
+                  <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight leading-tight">{activeNote.title}</h1>
+                  <div className="flex items-center justify-center gap-4 text-sm text-slate-500 font-medium">
+                    <span className="bg-slate-100 px-3 py-1 rounded-full">{activeNote.category || '随笔'}</span>
+                    <span>·</span>
+                    <span>{new Date(activeNote.updatedAt).toLocaleDateString()}</span>
                   </div>
-                )}
+                  {activeNote.tags.length > 0 && (
+                    <div className="flex justify-center gap-2 mt-4">
+                      {activeNote.tags.map(tag => (
+                        <span key={tag} className="text-blue-600 text-xs">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="blog-content">
+                <MarkdownPreview content={previewContent} attachments={activeNote.attachments} theme={markdownTheme} showToc={viewMode === 'view'} />
               </div>
-            )}
-            <div className="blog-content">
-              <MarkdownPreview content={activeNote.content} attachments={activeNote.attachments} theme={markdownTheme} showToc={viewMode === 'view'} />
             </div>
           </div>
-        </div>
+        )}
 
         {contextMenu.visible && (
           <div
