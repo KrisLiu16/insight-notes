@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Check, Clipboard, Clock, FileText, Heading2, Image, ListTodo, Minus, Quote } from 'lucide-react';
 import { MarkdownTheme, Note, NoteStats, ViewMode } from '../types';
 import TagEditor from './TagEditor';
@@ -35,7 +35,6 @@ const EditorContent: React.FC<EditorContentProps> = ({
   const [insertHint, setInsertHint] = useState<string>('');
   const [previewContent, setPreviewContent] = useState(activeNote.content);
   const [, startTransition] = useTransition();
-  const lastSelectionRef = useRef<{ noteId: string; start: number; end: number }>({ noteId: activeNote.id, start: 0, end: 0 });
 
   const attachmentsSize = useMemo(() => {
     if (!activeNote.attachments) return 0;
@@ -73,34 +72,20 @@ const EditorContent: React.FC<EditorContentProps> = ({
     };
   }, [activeNote.content, activeNote.id, startTransition]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
-    const isSameNote = lastSelectionRef.current.noteId === activeNote.id;
-    const targetStart = isSameNote ? Math.min(lastSelectionRef.current.start, ta.value.length) : ta.value.length;
-    const targetEnd = isSameNote ? Math.min(lastSelectionRef.current.end, ta.value.length) : ta.value.length;
-    ta.setSelectionRange(targetStart, targetEnd);
-    setSelectionState({ start: targetStart, end: targetEnd });
-    lastSelectionRef.current = { noteId: activeNote.id, start: targetStart, end: targetEnd };
-  }, [activeNote.id]);
-
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    if (lastSelectionRef.current.noteId !== activeNote.id) return;
     const targetStart = Math.min(selection.start, ta.value.length);
     const targetEnd = Math.min(selection.end, ta.value.length);
     ta.setSelectionRange(targetStart, targetEnd);
     setSelectionState({ start: targetStart, end: targetEnd });
-    lastSelectionRef.current = { noteId: activeNote.id, start: targetStart, end: targetEnd };
-  }, [selection.start, selection.end, activeNote.id]);
+  }, [activeNote.id, selection.start, selection.end]);
 
   const updateSelection = () => {
     const ta = textareaRef.current;
     if (!ta) return;
     const nextSel = { start: ta.selectionStart || 0, end: ta.selectionEnd || 0 };
     setSelectionState(nextSel);
-    lastSelectionRef.current = { noteId: activeNote.id, ...nextSel };
     onSelectionChange(nextSel.start, nextSel.end);
   };
 
