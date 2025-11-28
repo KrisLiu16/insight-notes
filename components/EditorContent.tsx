@@ -10,11 +10,23 @@ interface EditorContentProps {
   stats: NoteStats;
   lastSaved: number;
   onUpdateNote: (id: string, updates: Partial<Note>) => void;
+  selection: { start: number; end: number };
+  onSelectionChange: (start: number, end: number) => void;
   markdownTheme?: MarkdownTheme;
   isReadOnly?: boolean;
 }
 
-const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, stats, lastSaved, onUpdateNote, markdownTheme = 'classic', isReadOnly }) => {
+const EditorContent: React.FC<EditorContentProps> = ({
+  activeNote,
+  viewMode,
+  stats,
+  lastSaved,
+  onUpdateNote,
+  selection,
+  onSelectionChange,
+  markdownTheme = 'classic',
+  isReadOnly,
+}) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,12 +84,24 @@ const EditorContent: React.FC<EditorContentProps> = ({ activeNote, viewMode, sta
     lastSelectionRef.current = { noteId: activeNote.id, start: targetStart, end: targetEnd };
   }, [activeNote.id]);
 
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    if (lastSelectionRef.current.noteId !== activeNote.id) return;
+    const targetStart = Math.min(selection.start, ta.value.length);
+    const targetEnd = Math.min(selection.end, ta.value.length);
+    ta.setSelectionRange(targetStart, targetEnd);
+    setSelection({ start: targetStart, end: targetEnd });
+    lastSelectionRef.current = { noteId: activeNote.id, start: targetStart, end: targetEnd };
+  }, [selection.start, selection.end, activeNote.id]);
+
   const updateSelection = () => {
     const ta = textareaRef.current;
     if (!ta) return;
     const nextSel = { start: ta.selectionStart || 0, end: ta.selectionEnd || 0 };
     setSelection(nextSel);
     lastSelectionRef.current = { noteId: activeNote.id, ...nextSel };
+    onSelectionChange(nextSel.start, nextSel.end);
   };
 
   const getSelectionRange = () => {

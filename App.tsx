@@ -56,7 +56,8 @@ const App = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const [history, setHistory] = useState<Note[]>([]);
+  type NoteSnapshot = { note: Note; selection: { start: number; end: number } };
+  const [history, setHistory] = useState<NoteSnapshot[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [lastSaved, setLastSaved] = useState<number>(Date.now());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -70,6 +71,9 @@ const App = () => {
   const saveTimerRef = useRef<number | null>(null);
   const historyTimerRef = useRef<number | null>(null);
   const lastSnapshotKeyRef = useRef<string>('');
+  const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const selectionMapRef = useRef<Record<string, { start: number; end: number }>>({});
+  const [selectionForNote, setSelectionForNote] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const snapshotKey = (note: Note) =>
     `${note.id}|${note.title}|${note.content}|${note.category || ''}|${(note.tags || []).join(',')}|${Object.keys(note.attachments || {}).length}`;
   const undoRef = useRef<() => void>(() => {});
@@ -161,9 +165,12 @@ Happy writing!`,
       saveNotes([welcomeNote]);
       setSelectedNoteId(welcomeNote.id);
       setCurrentNote(welcomeNote);
-      setHistory([welcomeNote]);
+      const snap: NoteSnapshot = { note: welcomeNote, selection: { start: 0, end: 0 } };
+      setHistory([snap]);
       setHistoryIndex(0);
       lastSnapshotKeyRef.current = snapshotKey(welcomeNote);
+      selectionMapRef.current[welcomeNote.id] = { start: 0, end: 0 };
+      setSelectionForNote({ start: 0, end: 0 });
     }
   }, []);
 
@@ -183,9 +190,12 @@ Happy writing!`,
     const targetKey = snapshotKey(target);
     if (currentNote && currentNote.id === target.id && snapshotKey(currentNote) === targetKey) return;
     setCurrentNote(target);
-    setHistory([target]);
+    const snap: NoteSnapshot = { note: target, selection: selectionMapRef.current[target.id] || { start: target.content.length, end: target.content.length } };
+    setHistory([snap]);
     setHistoryIndex(0);
     lastSnapshotKeyRef.current = targetKey;
+    const sel = selectionMapRef.current[target.id] || { start: target.content.length, end: target.content.length };
+    setSelectionForNote(sel);
   }, [selectedNoteId, notes]);
 
   const filteredNotes = useMemo(() => {
@@ -246,7 +256,11 @@ Happy writing!`,
     setViewMode('edit');
     if (window.innerWidth < 768) setIsMobileMenuOpen(false);
 
-    setHistory([newNote]);
+    const sel = { start: 0, end: 0 };
+    selectionMapRef.current[newNote.id] = sel;
+    setSelectionForNote(sel);
+    const snap: NoteSnapshot = { note: newNote, selection: sel };
+    setHistory([snap]);
     setHistoryIndex(0);
     lastSnapshotKeyRef.current = snapshotKey(newNote);
   };
@@ -289,7 +303,7 @@ Happy writing!`,
     historyTimerRef.current = window.setTimeout(() => {
       const key = snapshotKey(currentNote);
       if (key === lastSnapshotKeyRef.current) return;
-      const snapshot = { ...currentNote };
+      const snapshot: NoteSnapshot = { note: { ...currentNote }, selection: selectionRef.current };
       setHistory(prev => {
         const next = prev.slice(0, historyIndex + 1).concat(snapshot);
         const trimmed = next.slice(-30); // cap history size
@@ -363,8 +377,11 @@ Happy writing!`,
       window.clearTimeout(historyTimerRef.current);
     }
     setHistoryIndex(prevIndex);
-    lastSnapshotKeyRef.current = snapshotKey(prev);
-    setCurrentNote({ ...prev });
+    lastSnapshotKeyRef.current = snapshotKey(prev.note);
+    selectionRef.current = prev.selection;
+    selectionMapRef.current[prev.note.id] = prev.selection;
+    setSelectionForNote(prev.selection);
+    setCurrentNote({ ...prev.note });
   };
 
   const redoNote = () => {
@@ -376,8 +393,11 @@ Happy writing!`,
       window.clearTimeout(historyTimerRef.current);
     }
     setHistoryIndex(nextIndex);
-    lastSnapshotKeyRef.current = snapshotKey(next);
-    setCurrentNote({ ...next });
+    lastSnapshotKeyRef.current = snapshotKey(next.note);
+    selectionRef.current = next.selection;
+    selectionMapRef.current[next.note.id] = next.selection;
+    setSelectionForNote(next.selection);
+    setCurrentNote({ ...next.note });
   };
 
   const handleCopyContent = () => {
@@ -552,6 +572,14 @@ Happy writing!`,
   const handleSelectNote = (id: string) => {
     setSelectedNoteId(id);
     setIsMobileMenuOpen(false);
+    const sel = selectionMapRef.current[id];
+    if (sel) {
+      setSelectionForNote(sel);
+    } else {
+      const target = notes.find(n => n.id === id);
+      const end = target ? target.content.length : 0;
+      setSelectionForNote({ start: end, end });
+    }
   };
 
   return (
@@ -652,6 +680,12 @@ Happy writing!`,
                 stats={stats}
                 lastSaved={lastSaved}
                 onUpdateNote={handleUpdateNote}
+                selection={selectionForNote}
+                onSelectionChange={(start, end) => {
+                  selectionRef.current = { start, end };
+                  selectionMapRef.current[activeNote.id] = { start, end };
+                  setSelectionForNote({ start, end });
+                }}
                 markdownTheme={settings.markdownTheme || 'classic'}
                 isReadOnly={isReadOnly}
               />
