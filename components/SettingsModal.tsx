@@ -21,11 +21,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     if (isOpen) setFormData(settings);
   }, [isOpen, settings]);
 
-  const applyPreset = (provider: 'gemini' | 'openai' | 'deepseek' | 'ollama' | 'openai-mini' | 'openai-4-1' | 'claude' | 'qwen') => {
+  const applyPreset = (provider: 'gemini' | 'openai' | 'deepseek' | 'ollama' | 'openai-mini' | 'openai-4-1' | 'claude' | 'qwen' | 'doubao') => {
     let update = {};
     switch (provider) {
       case 'gemini':
         update = { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' };
+        break;
+      case 'doubao':
+        update = { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'ep-20240604-xxxxxx-xxxxx' };
         break;
       case 'openai':
         update = { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' };
@@ -200,6 +203,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">快速预设 (Presets)</label>
                 <div className="flex gap-2 flex-wrap">
                   <button onClick={() => applyPreset('gemini')} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">Gemini</button>
+                  <button onClick={() => applyPreset('doubao')} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">Doubao (豆包)</button>
                   <button onClick={() => applyPreset('deepseek')} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">DeepSeek</button>
                   <button onClick={() => applyPreset('openai')} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">OpenAI 4o-mini</button>
                   <button onClick={() => applyPreset('openai-4-1')} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">OpenAI 4.1</button>
