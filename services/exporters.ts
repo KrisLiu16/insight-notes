@@ -135,3 +135,4 @@ export const markdownToHtml = async (markdown: string, theme: MarkdownTheme, tit
 };
 
 export const pxToMm = (px: number) => (px / 96) * 25.4;
+export const mmToPx = (mm: number) => (mm / 25.4) * 96;

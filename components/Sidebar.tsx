@@ -1,6 +1,5 @@
 import React from 'react';
 import { BookOpen, Hash, LayoutTemplate, PanelLeftClose, Plus, Search, Settings, X } from 'lucide-react';
-import Logo from './Logo';
 import { AppSettings, Note } from '../types';
 
 interface SidebarItemProps {
@@ -68,7 +67,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   >
     <div className="h-16 flex items-center justify-between px-5 shrink-0 bg-transparent">
       <div className="flex items-center">
-        <Logo size={28} className="mr-2.5 shadow-lg shadow-purple-400/30" />
         <h1 className="text-base font-bold text-slate-800 tracking-tight">Insight Notes</h1>
       </div>
       <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-200/50 rounded-lg transition-colors" title="关闭侧边栏">

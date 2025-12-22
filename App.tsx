@@ -121,42 +121,43 @@ const App = () => {
     } else {
       const welcomeNote: Note = {
         id: generateId(),
-        title: '👋 Welcome to Insight Notes',
-        content: `# Welcome to Insight Notes
+        title: '👋 欢迎使用 Insight Notes',
+        content: `# 欢迎使用 Insight Notes
 
-An AI-assisted Markdown notebook for fast capture, polish, and export.
+一款 AI 加持的 Markdown 笔记本，支持快速记录、分析与润色、导出与备份。
 
-## Quick start
+## 快速开始
 
-1. **Configure AI**: open Settings (bottom-left) and add your provider key (Gemini, OpenAI, DeepSeek, or local Ollama).
-2. **Create**: click "+ New Note" in the sidebar.
-3. **AI help**: use "Analyze" to auto-tag and "Polish" to refine wording.
+1. **配置 AI**：打开左下角「设置」，填入你的模型与 API Key（支持 Gemini、OpenAI、DeepSeek 或本地 Ollama）。
+2. **创建笔记**：点击侧边栏「+ 新建笔记」。
+3. **AI 助手**：使用「分析」自动生成标签与摘要；使用「润色」优化措辞。
 
-## Shortcuts
+## 常用快捷键
 
-- \`Cmd/Ctrl + K\`: command palette / search
-- \`Cmd/Ctrl + S\`: save
-- \`Cmd/Ctrl + Shift + P\`: open export
-- \`Cmd/Ctrl + Enter\`: AI polish
+- \`Cmd/Ctrl + K\`：命令面板 / 全局搜索
+- \`Cmd/Ctrl + S\`：保存
+- \`Cmd/Ctrl + Shift + P\`：导出
+- \`Cmd/Ctrl + Enter\`：AI 润色
+- \`Cmd/Ctrl + Z\` / \`Cmd/Ctrl + Shift + Z\`：撤销 / 重做
 
-## Layout
+## 视图与布局
 
-- Toggle **Edit / Split / Preview** from the toolbar.
-- Collapse the sidebar to focus.
+- 工具栏切换 **编辑 / 分屏 / 预览**
+- 侧边栏与列表可折叠，移动端支持返回
 
 \`\`\`mermaid
  graph LR
-    A[Idea] --> B(Draft)
-    B --> C{AI Assistant}
-    C -- Analyze --> D[Auto Tags]
-    C -- Polish --> E[Refine Text]
-    D --> F[Library]
+    A[灵感] --> B(草稿)
+    B --> C{AI 助手}
+    C -- 分析 --> D[标签/摘要]
+    C -- 润色 --> E[优化文本]
+    D --> F[知识库]
     E --> F
 \`\`\`
 
-Happy writing!`,
-        category: 'Getting Started',
-        tags: ['Guide', 'Welcome'],
+开始写作吧！`,
+        category: '入门指南',
+        tags: ['指南', '欢迎'],
         createdAt: Date.now(),
         updatedAt: Date.now(),
         attachments: {},

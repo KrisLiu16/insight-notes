@@ -198,16 +198,20 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
   return (
     <div className={`relative prose max-w-none prose-headings:font-bold prose-img:rounded-lg markdown-body break-words ${style.prose} ${style.link} ${style.container}`}>
       {showToc && headings.length > 0 && (
-        <div className="hidden lg:block absolute left-[-220px] top-0 w-48 text-xs text-slate-500">
+        <div className="hidden lg:block absolute left-[-220px] top-0 h-full w-48 text-xs text-slate-500">
           <div className="sticky top-6 bg-white/80 backdrop-blur rounded-xl border border-slate-200 shadow-sm p-3 space-y-2">
             <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-slate-400">目录</div>
             <div className="space-y-1 max-h-[320px] overflow-auto">
               {headings.map(h => (
                 <button
                   key={h.id}
-                  onClick={() => {
+                  onClick={e => {
+                    e.preventDefault();
                     const el = document.getElementById(h.id);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (el) {
+                      // 仅在父容器内滚动，避免触发页面级滚动
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                   }}
                   className="block w-full text-left hover:text-blue-600 transition-colors"
                   style={{ paddingLeft: `${(h.level - 1) * 10}px` }}
@@ -276,7 +280,8 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : '';
             const codeString = String(children).replace(/\n$/, '');
-            const isBlock = !inline;
+            const isMatch = !!match;
+            const isBlock = isMatch || codeString.includes('\n');
 
             if (isBlock && language === 'mermaid') {
               return <Mermaid chart={codeString} />;
@@ -308,9 +313,9 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
             }
 
             return (
-              <code className={`${className} px-1.5 py-0.5 rounded text-sm font-mono ${style.inlineCode}`} {...props}>
+              <span className={`${className} inline-code-marker px-1.5 py-0.5 rounded text-sm font-mono ${style.inlineCode}`} {...props}>
                 {children}
-              </code>
+              </span>
             );
           },
           // Customizing table styles

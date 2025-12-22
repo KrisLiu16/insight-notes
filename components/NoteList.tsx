@@ -83,8 +83,8 @@ const NoteList: React.FC<NoteListProps> = ({
             </div>
 
             <h3 className={`font-semibold text-sm mb-1 truncate pr-6 ${selectedNoteId === note.id ? 'text-blue-900' : 'text-slate-700'}`}>{note.title || '无标题'}</h3>
-            <p className={`text-xs line-clamp-2 h-8 mb-2 leading-relaxed font-light ${selectedNoteId === note.id ? 'text-blue-900/60' : 'text-slate-500'}`}>
-              {note.content.replace(/[#*`>]/g, '') || '空笔记...'}
+            <p className={`text-xs h-[2.6em] line-clamp-2 mb-2 leading-[1.3] font-normal break-all ${selectedNoteId === note.id ? 'text-blue-900/60' : 'text-slate-500'}`}>
+              {note.content.replace(/[#*`>]/g, '').trim() || '空笔记...'}
             </p>
             <div className="flex items-center justify-between text-[10px]">
               <span className={`${selectedNoteId === note.id ? 'text-blue-400' : 'text-slate-400'}`}>{new Date(note.updatedAt).toLocaleDateString()}</span>

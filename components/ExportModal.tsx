@@ -4,7 +4,7 @@ import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { Note } from '../types';
 import MarkdownPreview from './MarkdownPreview';
-import { MarkdownTheme, markdownToHtml, pxToMm } from '../services/exporters';
+import { MarkdownTheme, markdownToHtml, pxToMm, mmToPx } from '../services/exporters';
 import { saveFile } from '../services/saveFile';
 
 type ExportFormat = 'pdf' | 'png' | 'html' | 'markdown';
@@ -29,19 +29,28 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
-  const [scale, setScale] = useState<number>(1.5);
+  const [scale, setScale] = useState<number>(1);
   const [margin, setMargin] = useState<number>(10); // mm
   const [customWidth, setCustomWidth] = useState<number>(900);
   const [customHeight, setCustomHeight] = useState<number>(1200);
+  const [showTitle, setShowTitle] = useState(true);
+  const [showMetadata, setShowMetadata] = useState(false);
   const [loading, setLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const sizePx = useMemo(() => {
     const base = paperSize === 'custom' ? { width: customWidth, height: customHeight } : paperSizesPx[paperSize];
-    return orientation === 'portrait' ? base : { width: base.height, height: base.width };
+    const width = orientation === 'portrait' ? base.width : base.height;
+    const height = orientation === 'portrait' ? base.height : base.width;
+    // For preview, we want to simulate the paper size with margins
+    // The content area will be smaller
+    return { width, height };
   }, [paperSize, orientation, customWidth, customHeight]);
 
   const previewScale = useMemo(() => Math.min(1, 900 / sizePx.width), [sizePx.width]);
+
+  // Convert margin mm to px for preview padding
+  const marginPx = useMemo(() => mmToPx(margin), [margin]);
 
   const handleDownload = async () => {
     if (!note || !previewRef.current) return;
@@ -69,27 +78,38 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
       // PDF
       const widthMm = pxToMm(sizePx.width);
       const heightMm = pxToMm(sizePx.height);
-      const doc = new jsPDF({
-        orientation,
-        unit: 'mm',
-        format: [widthMm, heightMm],
-      });
+      const doc = new jsPDF({ orientation, unit: 'mm', format: [widthMm, heightMm] });
       const img = new Image();
       img.src = dataUrl;
-      await new Promise(resolve => {
-        img.onload = () => resolve(true);
-      });
-      const availableWidth = widthMm - margin * 2;
-      let imgWidth = availableWidth;
-      let imgHeight = (availableWidth * img.naturalHeight) / img.naturalWidth;
-      const availableHeight = heightMm - margin * 2;
-      if (imgHeight > availableHeight) {
-        imgHeight = availableHeight;
-        imgWidth = (availableHeight * img.naturalWidth) / img.naturalHeight;
+      await new Promise(resolve => { img.onload = () => resolve(true); });
+
+      const pageContentWidthMm = widthMm - margin * 2;
+      const pageContentHeightMm = heightMm - margin * 2;
+
+      const mmPerPx = pageContentWidthMm / img.naturalWidth;
+      const sliceHeightPx = Math.floor(pageContentHeightMm / mmPerPx);
+
+      let y = 0;
+      let pageIndex = 0;
+      while (y < img.naturalHeight) {
+        const currSlicePx = Math.min(sliceHeightPx, img.naturalHeight - y);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = currSlicePx;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas 不支持 2D 上下文');
+        ctx.drawImage(img, 0, y, img.naturalWidth, currSlicePx, 0, 0, img.naturalWidth, currSlicePx);
+        const sliceUrl = canvas.toDataURL('image/png');
+
+        const renderWidthMm = pageContentWidthMm;
+        const renderHeightMm = currSlicePx * mmPerPx;
+        if (pageIndex > 0) doc.addPage([widthMm, heightMm], orientation);
+        doc.addImage(sliceUrl, 'PNG', margin, margin, renderWidthMm, renderHeightMm);
+
+        y += currSlicePx;
+        pageIndex += 1;
       }
-      const offsetX = (widthMm - imgWidth) / 2;
-      const offsetY = (heightMm - imgHeight) / 2;
-      doc.addImage(dataUrl, 'PNG', offsetX, offsetY, imgWidth, imgHeight);
+
       const pdfBlob = doc.output('blob');
       await saveFile(pdfBlob, { suggestedName: `${note.title || 'note'}.pdf`, mime: 'application/pdf' });
     } catch (err) {
@@ -189,6 +209,28 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
                 </label>
               </div>
 
+              <div className="space-y-3 pt-3 border-t border-slate-100">
+                <div className="text-xs font-bold text-slate-400 uppercase">内容选项</div>
+                <label className="flex items-center justify-between text-sm text-slate-600 cursor-pointer">
+                  <span>显示标题</span>
+                  <input
+                    type="checkbox"
+                    checked={showTitle}
+                    onChange={e => setShowTitle(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-0"
+                  />
+                </label>
+                <label className="flex items-center justify-between text-sm text-slate-600 cursor-pointer">
+                  <span>显示元数据</span>
+                  <input
+                    type="checkbox"
+                    checked={showMetadata}
+                    onChange={e => setShowMetadata(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-0"
+                  />
+                </label>
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600">方向</span>
                 <div className="flex gap-2">
@@ -207,18 +249,26 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">缩放</span>
-                <div className="flex gap-2">
-                  {[1, 1.25, 1.5, 2].map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setScale(v)}
-                      className={`px-3 py-1.5 rounded-lg border text-sm ${scale === v ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200'}`}
-                    >
-                      {v}x
-                    </button>
-                  ))}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-600">缩放 ({Math.round(scale * 100)}%)</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="3"
+                    step="0.1"
+                    value={scale}
+                    onChange={e => setScale(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <button
+                    onClick={() => setScale(1)}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition-colors"
+                  >
+                    重置
+                  </button>
                 </div>
               </div>
 
@@ -272,13 +322,31 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
             <div className="flex justify-center relative z-10">
               <div
                 ref={previewRef}
-                className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200"
-                style={{ width: sizePx.width, minHeight: sizePx.height, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}
+                className="bg-white shadow-2xl overflow-hidden border border-slate-200 origin-top-left transition-all duration-200"
+                style={{
+                  width: sizePx.width,
+                  minHeight: sizePx.height,
+                  padding: marginPx,
+                  transform: `scale(${previewScale})`,
+                }}
               >
                 {note ? (
-                  <div className="p-6 md:p-8">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-4">{note.title || '未命名笔记'}</h1>
-                    <MarkdownPreview content={note.content} attachments={note.attachments} theme={theme} showToc={false} />
+                  <div className="h-full flex flex-col" style={{ zoom: scale }}>
+                    {(showTitle || showMetadata) && (
+                      <div className="mb-6 border-b border-slate-100 pb-4">
+                        {showTitle && <h1 className="text-3xl font-bold text-slate-900 mb-2">{note.title || '未命名笔记'}</h1>}
+                        {showMetadata && (
+                          <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+                            <span>分类: {note.category || '未分类'}</span>
+                            <span>更新: {new Date(note.updatedAt).toLocaleDateString()}</span>
+                            {note.tags.length > 0 && <span>标签: {note.tags.join(', ')}</span>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <MarkdownPreview content={note.content} attachments={note.attachments} theme={theme} showToc={false} />
+                    </div>
                   </div>
                 ) : (
                   <div className="p-10 text-center text-slate-400">暂无笔记可预览</div>

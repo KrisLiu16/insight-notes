@@ -125,11 +125,15 @@ const AiChatPanel: React.FC<AiChatPanelProps> = ({
                       remarkPlugins={[remarkGfm]}
                       components={{
                         code({ node, inline, className, children, ...props }: any) {
-                          const language = /language-(\w+)/.exec(className || '')?.[1];
-                          if (!inline && language === 'mermaid') {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const language = match?.[1];
+                          const codeString = String(children).replace(/\n$/, '');
+                          const isBlock = !!match || codeString.includes('\n');
+
+                          if (isBlock && language === 'mermaid') {
                             return <pre className="bg-slate-100 text-slate-800 rounded-lg p-3 text-xs whitespace-pre-wrap">{children}</pre>;
                           }
-                          return inline ? (
+                          return !isBlock ? (
                             <code className="bg-slate-100 text-slate-800 px-1 rounded">{children}</code>
                           ) : (
                             <pre className="bg-slate-100 text-slate-800 rounded-lg p-3 text-xs whitespace-pre-wrap" {...props}>

@@ -70,6 +70,19 @@ pre {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+.markdown-body .inline-code-marker {
+  display: inline !important;
+  white-space: break-spaces !important;
+  width: auto !important;
+  vertical-align: baseline;
+  line-height: inherit;
+  margin: 0;
+}
+.markdown-body .inline-code-marker::before,
+.markdown-body .inline-code-marker::after {
+  content: none !important;
+  display: none !important;
+}
 .markdown-body .task-list-item {
   list-style: none;
 }

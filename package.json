@@ -1,7 +1,7 @@
 {
   "name": "insight-notes",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "main": "electron/main.js",
   "author": {
@@ -75,10 +75,19 @@
     ],
     "asar": true,
     "mac": {
-      "category": "public.app-category.productivity"
+      "icon": "resources/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
-      "icon": "icon.ico",
+      "icon": "resources/icon.png",
       "target": [
         "nsis",
         "zip"

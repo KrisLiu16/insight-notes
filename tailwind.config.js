@@ -11,7 +11,20 @@ export default {
     './services/**/*.{ts,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      typography: {
+        DEFAULT: {
+          css: {
+            'code::before': {
+              content: '""',
+            },
+            'code::after': {
+              content: '""',
+            },
+          },
+        },
+      },
+    },
   },
   plugins: [typography, animate],
 };
