@@ -140,8 +140,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, note, theme, onClose, o
           </button>
         </div>
 
-        <div className="flex-1 overflow-hidden flex">
-          <div className="w-full md:w-80 border-r border-slate-100 p-4 space-y-4 bg-gradient-to-b from-slate-50 to-white overflow-y-auto custom-scrollbar h-full">
+        <div className="flex-1 overflow-hidden flex min-h-0">
+          <div className="w-full md:w-80 border-r border-slate-100 p-4 space-y-4 bg-gradient-to-b from-slate-50 to-white overflow-y-auto custom-scrollbar flex-shrink-0">
             <div className="bg-white/80 border border-slate-100 rounded-2xl p-3 shadow-sm">
               <div className="text-xs font-bold text-slate-400 uppercase mb-2">格式</div>
               <div className="grid grid-cols-2 gap-2">
