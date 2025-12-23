@@ -73,7 +73,7 @@ const NoteList: React.FC<NoteListProps> = ({
   return (
     <div
       className={`
-        bg-white flex flex-col h-full z-10 transition-all duration-300 ease-in-out md:overflow-hidden
+        bg-white flex flex-col h-full min-h-0 z-10 transition-all duration-300 ease-in-out md:overflow-hidden
         ${selectedNoteId ? 'hidden md:flex' : 'flex'}
         ${
           isNoteListOpen
@@ -101,7 +101,7 @@ const NoteList: React.FC<NoteListProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1">
         {filteredNotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center mt-20 text-slate-400 px-6 text-center">
             <p className="text-xs">未找到笔记</p>
@@ -132,8 +132,8 @@ const NoteList: React.FC<NoteListProps> = ({
               </div>
 
               <h3 className={`font-semibold text-sm mb-1 truncate pr-6 ${selectedNoteId === note.id ? 'text-blue-900' : 'text-slate-700'}`}>{note.title || '无标题'}</h3>
-              <p className={`text-xs h-[2.6em] line-clamp-2 mb-2 leading-[1.3] font-normal break-all overflow-hidden ${selectedNoteId === note.id ? 'text-blue-900/60' : ''}`}>
-                {getHighlightedText(note.content.replace(/[#*`>]/g, '').trim() || '空笔记...', localQuery)}
+              <p className={`text-xs h-[2.6em] line-clamp-2 mb-2 leading-[1.3] font-normal break-all ${selectedNoteId === note.id ? 'text-blue-900/60' : 'text-slate-500'}`}>
+                {note.content.replace(/[#*`>]/g, '').trim() || '空笔记...'}
               </p>
               <div className="flex items-center justify-between text-[10px] gap-2">
                 <span className={`shrink-0 ${selectedNoteId === note.id ? 'text-blue-400' : 'text-slate-400'}`}>{new Date(note.updatedAt).toLocaleDateString()}</span>
