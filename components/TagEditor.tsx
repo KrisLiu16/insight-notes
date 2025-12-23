@@ -9,6 +9,7 @@ interface TagEditorProps {
 const TagEditor: React.FC<TagEditorProps> = ({ tags, onChange }) => {
   const [inputVisible, setInputVisible] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [editingTag, setEditingTag] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -17,8 +18,24 @@ const TagEditor: React.FC<TagEditorProps> = ({ tags, onChange }) => {
     }
   }, [inputVisible]);
 
+  const handleTagClick = (tag: string) => {
+    setEditingTag(tag);
+    setInputValue(tag);
+    setInputVisible(true);
+  };
+
   const handleInputConfirm = () => {
-    if (inputValue && !tags.includes(inputValue)) {
+    if (editingTag) {
+      if (inputValue && inputValue !== editingTag) {
+        if (!tags.includes(inputValue)) {
+          onChange(tags.map(t => (t === editingTag ? inputValue : t)));
+        }
+      } else if (!inputValue) {
+        // If input cleared, remove tag
+        removeTag(editingTag);
+      }
+      setEditingTag(null);
+    } else if (inputValue && !tags.includes(inputValue)) {
       onChange([...tags, inputValue]);
     }
     setInputValue('');
@@ -33,18 +50,25 @@ const TagEditor: React.FC<TagEditorProps> = ({ tags, onChange }) => {
     <div className="flex items-center gap-2 flex-wrap">
       <Tag size={14} className="text-slate-400 shrink-0" />
       {tags.map(tag => (
-        <span
-          key={tag}
-          className="group flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs hover:bg-slate-200 transition-colors cursor-default border border-slate-200"
-        >
-          {tag}
-          <button
-            onClick={() => removeTag(tag)}
-            className="text-slate-400 hover:text-red-500 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        tag !== editingTag && (
+          <span
+            key={tag}
+            onClick={() => handleTagClick(tag)}
+            className="group flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs hover:bg-slate-200 transition-colors cursor-pointer border border-slate-200"
+            title="点击编辑"
           >
-            <X size={10} strokeWidth={3} />
-          </button>
-        </span>
+            {tag}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                removeTag(tag);
+              }}
+              className="text-slate-400 hover:text-red-500 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X size={10} strokeWidth={3} />
+            </button>
+          </span>
+        )
       ))}
 
       {inputVisible ? (
@@ -57,7 +81,11 @@ const TagEditor: React.FC<TagEditorProps> = ({ tags, onChange }) => {
           onBlur={handleInputConfirm}
           onKeyDown={e => {
             if (e.key === 'Enter') handleInputConfirm();
-            if (e.key === 'Escape') setInputVisible(false);
+            if (e.key === 'Escape') {
+              setInputVisible(false);
+              setEditingTag(null);
+              setInputValue('');
+            }
           }}
         />
       ) : (
