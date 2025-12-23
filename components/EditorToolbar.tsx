@@ -1,6 +1,7 @@
 import React from 'react';
-import { Check, ChevronRight, Columns, Copy, Download, Edit3, Eye, List, Loader2, Lock, MessageSquare, PenTool, Redo2, Sidebar, Sparkles, Undo2, Unlock } from 'lucide-react';
+import { Check, ChevronRight, Columns, Copy, Download, Edit3, Eye, Fingerprint, List, Loader2, Lock, MessageSquare, PenTool, Redo2, Sidebar, Sparkles, Undo2, Unlock } from 'lucide-react';
 import { Note, ViewMode } from '../types';
+import { useState } from 'react';
 
 interface EditorToolbarProps {
   activeNote: Note;
@@ -27,6 +28,27 @@ interface EditorToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
 }
+
+const IdBadge = ({ id }: { id: string }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-[10px] font-mono text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors border border-slate-200"
+      title="点击复制笔记 ID"
+    >
+      <Fingerprint size={12} />
+      <span>{id}</span>
+      {copied ? <Check size={10} className="text-green-500" /> : <Copy size={10} className="opacity-50" />}
+    </button>
+  );
+};
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   activeNote,
@@ -82,15 +104,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       </button>
 
       {viewMode !== 'view' ? (
-        <input
-          type="text"
-          value={activeNote.title}
-          onChange={e => onTitleChange(e.target.value)}
-          className="text-lg md:text-xl font-bold text-slate-800 border-none outline-none focus:ring-0 bg-transparent w-full placeholder-slate-300 truncate font-sans"
-          placeholder="无标题笔记"
-        />
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          <input
+            type="text"
+            value={activeNote.title}
+            onChange={e => onTitleChange(e.target.value)}
+            className="text-lg md:text-xl font-bold text-slate-800 border-none outline-none focus:ring-0 bg-transparent w-full placeholder-slate-300 truncate font-sans"
+            placeholder="无标题笔记"
+          />
+          <IdBadge id={activeNote.id} />
+        </div>
       ) : (
-        <span className="text-lg md:text-xl font-bold text-slate-800 truncate">{activeNote.title}</span>
+        <div className="flex items-center gap-2 overflow-hidden">
+          <span className="text-lg md:text-xl font-bold text-slate-800 truncate">{activeNote.title}</span>
+          <IdBadge id={activeNote.id} />
+        </div>
       )}
     </div>
 

@@ -425,7 +425,14 @@ const EditorContent: React.FC<EditorContentProps> = ({
                 </div>
               )}
               <div className="blog-content">
-                <MarkdownPreview content={previewContent} attachments={activeNote.attachments} theme={markdownTheme} showToc={viewMode === 'view'} onLinkClick={onLinkClick} />
+                <MarkdownPreview 
+                  content={previewContent} 
+                  attachments={activeNote.attachments} 
+                  theme={markdownTheme} 
+                  showToc={viewMode === 'view'} 
+                  onLinkClick={onLinkClick} 
+                  validNoteIds={allNotes.map(n => n.id)}
+                />
               </div>
             </div>
           </div>

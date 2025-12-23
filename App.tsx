@@ -590,6 +590,9 @@ const App = () => {
       if (target) {
         handleSelectNote(target.id);
         return;
+      } else {
+        alert('该笔记不存在或已被删除');
+        return;
       }
     }
     // 兼容纯数字 ID 跳转
@@ -597,6 +600,9 @@ const App = () => {
       const target = notes.find(n => n.id === href);
       if (target) {
         handleSelectNote(target.id);
+        return;
+      } else {
+        alert('该笔记不存在或已被删除');
         return;
       }
     }

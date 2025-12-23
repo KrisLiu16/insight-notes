@@ -18,6 +18,7 @@ interface MarkdownPreviewProps {
   theme?: MarkdownTheme;
   showToc?: boolean;
   onLinkClick?: (href: string) => void;
+  validNoteIds?: string[];
 }
 
 const CopyButton = ({ text }: { text: string }) => {
@@ -51,7 +52,7 @@ const slugify = (text: string) =>
     .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true, onLinkClick }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true, onLinkClick, validNoteIds }) => {
   const deferredContent = useDeferredValue(content);
   const headings = useMemo(() => {
     const lines = deferredContent.split('\n');
@@ -351,23 +352,42 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
               }
               window.open(href, '_blank', 'noopener,noreferrer');
             };
+            
             let domain = '';
+            let isInternal = false;
+            let isValidInternal = true;
+
             try {
               if (href.startsWith('note://') || href.match(/^\d{9}$/)) {
-                domain = '内部引用';
+                isInternal = true;
+                const id = href.replace('note://', '');
+                if (validNoteIds && !validNoteIds.includes(id)) {
+                  isValidInternal = false;
+                }
+                domain = isValidInternal ? '内部引用' : '引用失效';
               } else {
                 domain = new URL(href).host;
               }
             } catch (err) {
               domain = href;
             }
+
+            if (isInternal && !isValidInternal) {
+              return (
+                <span className="text-red-400 decoration-red-300 line-through decoration-2 cursor-not-allowed" title="该笔记不存在或已被删除">
+                  {children}
+                  <span className="text-[10px] ml-1 opacity-70">(失效)</span>
+                </span>
+              );
+            }
+
             return (
               <a
                 href={href}
                 onClick={handleClick}
-                target={href.startsWith('note://') || href.match(/^\d{9}$/) ? undefined : '_blank'}
+                target={isInternal ? undefined : '_blank'}
                 rel="noreferrer"
-                title={domain === '内部引用' ? '跳转到笔记' : `外链: ${domain}`}
+                title={isInternal ? '跳转到笔记' : `外链: ${domain}`}
                 className="underline decoration-slate-300 hover:decoration-current cursor-pointer text-blue-600"
               >
                 {children}
