@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronRight, Columns, Copy, Download, Edit3, Eye, Fingerprint, List, Loader2, Lock, MessageSquare, PenTool, Redo2, Sidebar, Sparkles, Undo2, Unlock } from 'lucide-react';
+import { Check, ChevronRight, Columns, Copy, Download, Edit3, Eye, Fingerprint, List, Loader2, Maximize2, Minimize2, MessageSquare, PenTool, Redo2, Sidebar, Sparkles, Undo2 } from 'lucide-react';
 import { Note, ViewMode } from '../types';
 import { useState } from 'react';
 
@@ -11,7 +11,7 @@ interface EditorToolbarProps {
   isAiAnalyzing: boolean;
   isAiPolishing: boolean;
   isCopied: boolean;
-  isReadOnly: boolean;
+  isFullScreen: boolean;
   onToggleSidebar: () => void;
   onToggleNoteList: () => void;
   onBack: () => void;
@@ -22,7 +22,7 @@ interface EditorToolbarProps {
   onCopy: () => void;
   onExport: () => void;
   onToggleChat: () => void;
-  onToggleReadOnly: () => void;
+  onToggleFullScreen: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -58,7 +58,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   isAiAnalyzing,
   isAiPolishing,
   isCopied,
-  isReadOnly,
+  isFullScreen,
   onToggleSidebar,
   onToggleNoteList,
   onBack,
@@ -69,7 +69,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onCopy,
   onExport,
   onToggleChat,
-  onToggleReadOnly,
+  onToggleFullScreen,
   onUndo,
   onRedo,
   canUndo,
@@ -194,11 +194,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       </button>
 
       <button
-        onClick={onToggleReadOnly}
-        className={`p-2 rounded-lg transition-colors ${isReadOnly ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
-        title={isReadOnly ? '取消只读 (允许编辑)' : '切换只读模式'}
+        onClick={onToggleFullScreen}
+        className={`p-2 rounded-lg transition-colors ${isFullScreen ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+        title={isFullScreen ? '退出全屏 (恢复编辑)' : '全屏阅读'}
       >
-        {isReadOnly ? <Lock size={18} /> : <Unlock size={18} />}
+        {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
       </button>
 
       <div className="flex items-center gap-1">

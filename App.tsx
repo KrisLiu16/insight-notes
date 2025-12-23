@@ -55,7 +55,31 @@ const App = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
-  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [preFullScreenState, setPreFullScreenState] = useState<{ sidebar: boolean; noteList: boolean; viewMode: ViewMode } | null>(null);
+
+  const handleToggleFullScreen = () => {
+    if (isFullScreen) {
+      // Exit full screen
+      if (preFullScreenState) {
+        setIsSidebarOpen(preFullScreenState.sidebar);
+        setIsNoteListOpen(preFullScreenState.noteList);
+        setViewMode(preFullScreenState.viewMode);
+      } else {
+        setIsSidebarOpen(true);
+        setIsNoteListOpen(true);
+        setViewMode('edit');
+      }
+      setIsFullScreen(false);
+    } else {
+      // Enter full screen
+      setPreFullScreenState({ sidebar: isSidebarOpen, noteList: isNoteListOpen, viewMode });
+      setIsSidebarOpen(false);
+      setIsNoteListOpen(false);
+      setViewMode('view');
+      setIsFullScreen(true);
+    }
+  };
   type NoteSnapshot = { note: Note; selection: { start: number; end: number } };
   const [history, setHistory] = useState<NoteSnapshot[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -683,7 +707,7 @@ const App = () => {
                 isAiAnalyzing={isAiAnalyzing}
                 isAiPolishing={isAiPolishing}
                 isCopied={isCopied}
-                isReadOnly={isReadOnly}
+                isFullScreen={isFullScreen}
                 canUndo={historyIndex > 0}
                 canRedo={historyIndex < history.length - 1}
                 onToggleSidebar={() => setIsSidebarOpen(true)}
@@ -696,7 +720,7 @@ const App = () => {
                 onCopy={handleCopyContent}
                 onExport={() => setIsExportOpen(true)}
                 onToggleChat={() => setIsChatOpen(v => !v)}
-                onToggleReadOnly={() => setIsReadOnly(v => !v)}
+                onToggleFullScreen={handleToggleFullScreen}
                 onUndo={undoNote}
                 onRedo={redoNote}
               />
@@ -722,7 +746,7 @@ const App = () => {
                   });
                 }}
                 markdownTheme={settings.markdownTheme || 'classic'}
-                isReadOnly={isReadOnly}
+                isReadOnly={false}
                 onLinkClick={handleLinkClick}
               />
             </>
