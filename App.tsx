@@ -140,6 +140,13 @@ const App = () => {
 - \`Cmd/Ctrl + Enter\`：AI 润色
 - \`Cmd/Ctrl + Z\` / \`Cmd/Ctrl + Shift + Z\`：撤销 / 重做
 
+## 双向链接与跳转
+
+- **引用语法**：支持两种引用格式
+  - \`[链接文本](note://123456789)\`：标准的内部链接格式
+  - \`[链接文本](123456789)\`：简化的纯数字 ID 格式
+- **点击跳转**：在预览模式（或分屏预览）中，点击上述格式的链接，会自动跳转到对应的笔记，实现知识库的互联互通。
+
 ## 视图与布局
 
 - 工具栏切换 **编辑 / 分屏 / 预览**
@@ -583,6 +590,25 @@ const App = () => {
     }
   };
 
+  const handleLinkClick = (href: string) => {
+    if (href.startsWith('note://')) {
+      const id = href.replace('note://', '');
+      const target = notes.find(n => n.id === id);
+      if (target) {
+        handleSelectNote(target.id);
+        return;
+      }
+    }
+    // 兼容纯数字 ID 跳转
+    if (href.match(/^\d{9}$/)) {
+      const target = notes.find(n => n.id === href);
+      if (target) {
+        handleSelectNote(target.id);
+        return;
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden relative font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-800">
       <SettingsModal
@@ -697,6 +723,7 @@ const App = () => {
                 }}
                 markdownTheme={settings.markdownTheme || 'classic'}
                 isReadOnly={isReadOnly}
+                onLinkClick={handleLinkClick}
               />
             </>
           ) : (

@@ -19,6 +19,7 @@ interface EditorContentProps {
   onSelectionChange: (start: number, end: number) => void;
   markdownTheme?: MarkdownTheme;
   isReadOnly?: boolean;
+  onLinkClick?: (href: string) => void;
 }
 
 const EditorContent: React.FC<EditorContentProps> = ({
@@ -31,6 +32,7 @@ const EditorContent: React.FC<EditorContentProps> = ({
   onSelectionChange,
   markdownTheme = 'classic',
   isReadOnly,
+  onLinkClick,
 }) => {
   const editorViewRef = useRef<EditorView | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -420,7 +422,7 @@ const EditorContent: React.FC<EditorContentProps> = ({
                 </div>
               )}
               <div className="blog-content">
-                <MarkdownPreview content={previewContent} attachments={activeNote.attachments} theme={markdownTheme} showToc={viewMode === 'view'} />
+                <MarkdownPreview content={previewContent} attachments={activeNote.attachments} theme={markdownTheme} showToc={viewMode === 'view'} onLinkClick={onLinkClick} />
               </div>
             </div>
           </div>

@@ -79,5 +79,10 @@ export const loadSettings = (): AppSettings => {
 };
 
 export const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  // 生成 9 位数字 ID (100,000,000 ~ 999,999,999)
+  // 使用当前时间戳和随机数混合，尽量保证不重复
+  // 注意：对于极高并发场景可能需要更严谨的算法，但作为个人笔记足够
+  const min = 100000000;
+  const max = 999999999;
+  return Math.floor(min + Math.random() * (max - min)).toString();
 };

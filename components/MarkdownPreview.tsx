@@ -17,6 +17,7 @@ interface MarkdownPreviewProps {
   attachments?: Record<string, string>;
   theme?: MarkdownTheme;
   showToc?: boolean;
+  onLinkClick?: (href: string) => void;
 }
 
 const CopyButton = ({ text }: { text: string }) => {
@@ -50,7 +51,7 @@ const slugify = (text: string) =>
     .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true, onLinkClick }) => {
   const deferredContent = useDeferredValue(content);
   const headings = useMemo(() => {
     const lines = deferredContent.split('\n');
@@ -344,11 +345,19 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
           a({ href = '', children, ...props }) {
             const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
               e.preventDefault();
+              if (href.startsWith('note://') || href.match(/^\d{9}$/)) {
+                onLinkClick?.(href);
+                return;
+              }
               window.open(href, '_blank', 'noopener,noreferrer');
             };
             let domain = '';
             try {
-              domain = new URL(href).host;
+              if (href.startsWith('note://') || href.match(/^\d{9}$/)) {
+                domain = '内部引用';
+              } else {
+                domain = new URL(href).host;
+              }
             } catch (err) {
               domain = href;
             }
@@ -356,10 +365,10 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
               <a
                 href={href}
                 onClick={handleClick}
-                target="_blank"
+                target={href.startsWith('note://') || href.match(/^\d{9}$/) ? undefined : '_blank'}
                 rel="noreferrer"
-                title={`外链: ${domain}`}
-                className="underline decoration-slate-300 hover:decoration-current"
+                title={domain === '内部引用' ? '跳转到笔记' : `外链: ${domain}`}
+                className="underline decoration-slate-300 hover:decoration-current cursor-pointer text-blue-600"
               >
                 {children}
               </a>
