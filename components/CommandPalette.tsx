@@ -22,11 +22,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, notes,
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filteredNotes = useMemo(() => {
-    if (!search) return notes.slice(0, 5);
+    if (!search) return notes.slice(0, 15);
     const q = search.toLowerCase();
     return notes
       .filter(n => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || n.tags.some(t => t.toLowerCase().includes(q)))
-      .slice(0, 8);
+      .slice(0, 20);
   }, [notes, search]);
 
   useEffect(() => {
