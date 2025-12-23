@@ -567,9 +567,15 @@ const App = () => {
         if (!parsed.notes || !Array.isArray(parsed.notes)) throw new Error('缺少 notes 字段');
         if (!parsed.settings || typeof parsed.settings !== 'object') throw new Error('缺少 settings 字段');
 
-        const firstNote = parsed.notes[0] || null;
-        setNotes(parsed.notes);
-        saveNotes(parsed.notes);
+        // 兼容旧版本 ID 生成
+        const migratedNotes = parsed.notes.map((note: any) => ({
+          ...note,
+          id: note.id && /^\d{9}$/.test(note.id) ? note.id : generateId() // 如果没有 9 位数字 ID，则生成一个新的
+        }));
+
+        const firstNote = migratedNotes[0] || null;
+        setNotes(migratedNotes);
+        saveNotes(migratedNotes);
         setSettings(parsed.settings);
         saveSettings(parsed.settings);
         setSelectedNoteId(firstNote?.id || null);
