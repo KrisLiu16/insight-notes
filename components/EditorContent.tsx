@@ -8,9 +8,11 @@ import { Check, Clipboard, Clock, FileText, Heading2, Image, ListTodo, Minus, Qu
 import { MarkdownTheme, Note, NoteStats, ViewMode } from '../types';
 import TagEditor from './TagEditor';
 import MarkdownPreview from './MarkdownPreview';
+import BacklinksPanel from './BacklinksPanel';
 
 interface EditorContentProps {
   activeNote: Note;
+  allNotes: Note[];
   viewMode: ViewMode;
   stats: NoteStats;
   lastSaved: number;
@@ -24,6 +26,7 @@ interface EditorContentProps {
 
 const EditorContent: React.FC<EditorContentProps> = ({
   activeNote,
+  allNotes,
   viewMode,
   stats,
   lastSaved,

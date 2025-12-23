@@ -140,13 +140,6 @@ const App = () => {
 - \`Cmd/Ctrl + Enter\`：AI 润色
 - \`Cmd/Ctrl + Z\` / \`Cmd/Ctrl + Shift + Z\`：撤销 / 重做
 
-## 双向链接与跳转
-
-- **引用语法**：支持两种引用格式
-  - \`[链接文本](note://123456789)\`：标准的内部链接格式
-  - \`[链接文本](123456789)\`：简化的纯数字 ID 格式
-- **点击跳转**：在预览模式（或分屏预览）中，点击上述格式的链接，会自动跳转到对应的笔记，实现知识库的互联互通。
-
 ## 视图与布局
 
 - 工具栏切换 **编辑 / 分屏 / 预览**
@@ -703,6 +696,7 @@ const App = () => {
               />
               <EditorContent
                 activeNote={activeNote}
+                allNotes={notes}
                 viewMode={viewMode}
                 stats={stats}
                 lastSaved={lastSaved}
