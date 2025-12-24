@@ -452,7 +452,7 @@ const App = () => {
         if (refNote) {
           // Truncate long content to avoid context limit
           const snippet = refNote.content.slice(0, 1000) + (refNote.content.length > 1000 ? '...' : '');
-          context += `Reference ID: ${id}\nTitle: ${refNote.title}\nContent:\n${snippet}\n\n`;
+          context += `Reference ID: ${id}\nTitle: ${refNote.title}\nTags: ${(refNote.tags || []).join(', ')}\nContent:\n${snippet}\n\n`;
         }
       });
       context += `--- End of References ---\n\n`;
