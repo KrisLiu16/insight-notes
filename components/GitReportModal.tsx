@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, GitBranch, Folder, RefreshCw, FileText, Loader2, Play } from 'lucide-react';
-import { getGitConfigUser, getRecentMerges, getMergeDiff, GitMerge } from '../services/git';
+import { X, GitBranch, Folder, RefreshCw, FileText, Loader2, Play, Globe } from 'lucide-react';
+import { getGitConfigUser, getRecentMerges, getMergeDiff, getGitRemoteUrl, parseGitUrl, GitMerge } from '../services/git';
 import { generateGitSummary } from '../services/gemini';
 import { AppSettings } from '../types';
 
@@ -13,6 +13,8 @@ interface GitReportModalProps {
 const GitReportModal: React.FC<GitReportModalProps> = ({ isOpen, onClose, settings }) => {
   const [repoPath, setRepoPath] = useState('');
   const [gitUser, setGitUser] = useState<string | null>(null);
+  const [repoUrl, setRepoUrl] = useState<string | null>(null);
+  const [parsedRepoName, setParsedRepoName] = useState<string | null>(null);
   const [merges, setMerges] = useState<GitMerge[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMerge, setSelectedMerge] = useState<GitMerge | null>(null);
@@ -42,6 +44,11 @@ const GitReportModal: React.FC<GitReportModalProps> = ({ isOpen, onClose, settin
     try {
       const user = await getGitConfigUser(path);
       setGitUser(user);
+      
+      const url = await getGitRemoteUrl(path);
+      setRepoUrl(url);
+      setParsedRepoName(url ? parseGitUrl(url) : null);
+
       const recentMerges = await getRecentMerges(path, 50);
       setMerges(recentMerges);
     } catch (e) {
@@ -61,7 +68,7 @@ const GitReportModal: React.FC<GitReportModalProps> = ({ isOpen, onClose, settin
         setSummary('该 Merge 没有产生 Diff（可能是空合并或已被包含）。');
         return;
       }
-      const context = `Commit Message: ${selectedMerge.message}\nAuthor: ${selectedMerge.author}\nDate: ${selectedMerge.date}\nCurrent Git User: ${gitUser}`;
+      const context = `Repository: ${parsedRepoName || repoUrl || 'Unknown'}\nRemote URL: ${repoUrl || 'N/A'}\nCommit Message: ${selectedMerge.message}\nAuthor: ${selectedMerge.author}\nDate: ${selectedMerge.date}\nCurrent Git User: ${gitUser}`;
       const result = await generateGitSummary(diff, context, settings.apiKey, settings.baseUrl, settings.model);
       setSummary(result);
     } catch (err: any) {
@@ -111,6 +118,17 @@ const GitReportModal: React.FC<GitReportModalProps> = ({ isOpen, onClose, settin
                 <div className="text-xs text-slate-500 flex justify-between">
                   <span>当前 Git 用户:</span>
                   <span className="font-medium text-slate-700 truncate max-w-[120px]" title={gitUser}>{gitUser}</span>
+                </div>
+              )}
+              {parsedRepoName && (
+                <div className="text-xs text-slate-500 flex justify-between items-center gap-2">
+                  <span className="shrink-0">远程仓库:</span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    <Globe size={10} />
+                    <span className="font-medium text-slate-700 truncate max-w-[140px]" title={repoUrl || ''}>
+                      {parsedRepoName}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
