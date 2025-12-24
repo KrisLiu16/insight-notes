@@ -50,7 +50,7 @@ const EditorContent: React.FC<EditorContentProps> = ({
 
   const attachmentsSize = useMemo(() => {
     if (!activeNote.attachments) return 0;
-    return Object.values(activeNote.attachments).reduce((acc, dataUrl) => acc + Math.max(0, dataUrl.length * 0.75 - 22), 0);
+    return Object.values(activeNote.attachments).reduce((acc: number, dataUrl: string) => acc + Math.max(0, dataUrl.length * 0.75 - 22), 0);
   }, [activeNote.attachments]);
 
   // Force immediate update of preview content when activeNote.id changes to prevent stale content flash
