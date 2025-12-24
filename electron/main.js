@@ -43,6 +43,7 @@ if (!gotTheLock) {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: false, // Ensure preload has access to necessary APIs
       },
     });
 
