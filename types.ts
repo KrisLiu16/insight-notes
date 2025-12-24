@@ -15,7 +15,7 @@ export interface Category {
   count: number;
 }
 
-export type MarkdownTheme = 'classic' | 'serif' | 'night' | 'pastel' | 'paper' | 'contrast' | 'mono' | 'terminal';
+export type MarkdownTheme = 'classic' | 'serif' | 'night' | 'github' | 'pastel' | 'paper' | 'contrast' | 'mono' | 'terminal';
 
 export interface AppSettings {
   apiKey: string;
@@ -25,7 +25,13 @@ export interface AppSettings {
   // Custom Prompts
   customAnalyzePrompt?: string;
   customPolishPrompt?: string;
+  customMergePrompt?: string;
+  customRequirementPrompt?: string;
+  excludeCodeInRequirement?: boolean;
+  gitIgnorePatterns?: string;
   markdownTheme?: MarkdownTheme;
+  sortBy?: 'updatedAt' | 'createdAt' | 'title' | 'category' | 'tagCount';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export type ViewMode = 'list' | 'edit' | 'split' | 'view';
@@ -43,6 +49,7 @@ declare global {
     desktop?: {
       selectDirectory: () => Promise<string>;
       runGit: (cwd: string, args: string[]) => Promise<{ stdout?: string; stderr?: string; error?: string }>;
+      onNavigate: (handler: (payload: { action: string }) => void) => void;
     };
   }
 }

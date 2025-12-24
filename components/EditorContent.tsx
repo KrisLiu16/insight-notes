@@ -3,9 +3,11 @@ import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorView, keymap } from '@codemirror/view';
+import { openSearchPanel } from '@codemirror/search';
 import { Check, Clipboard, Clock, FileText, Heading2, Image, ListTodo, Minus, Quote } from 'lucide-react';
 import { MarkdownTheme, Note, NoteStats, ViewMode } from '../types';
+import { searchPanelTheme, searchLocalization } from './CodeMirrorTheme';
 import TagEditor from './TagEditor';
 import MarkdownPreview from './MarkdownPreview';
 import BacklinksPanel from './BacklinksPanel';
@@ -51,15 +53,22 @@ const EditorContent: React.FC<EditorContentProps> = ({
     return Object.values(activeNote.attachments).reduce((acc, dataUrl) => acc + Math.max(0, dataUrl.length * 0.75 - 22), 0);
   }, [activeNote.attachments]);
 
+  // Force immediate update of preview content when activeNote.id changes to prevent stale content flash
+  // This is a "derived state" pattern that updates state during render
+  const [prevNoteId, setPrevNoteId] = useState(activeNote.id);
+  if (activeNote.id !== prevNoteId) {
+    setPrevNoteId(activeNote.id);
+    setPreviewContent(activeNote.content);
+  }
+
   useEffect(() => {
     const hideMenu = () => setContextMenu(prev => ({ ...prev, visible: false }));
     window.addEventListener('click', hideMenu);
     return () => window.removeEventListener('click', hideMenu);
   }, []);
 
-  useEffect(() => {
-    setPreviewContent(activeNote.content);
-  }, [activeNote.id]);
+  // Removed useEffect(() => { setPreviewContent(activeNote.content); }, [activeNote.id]); 
+  // because we handle it synchronously above.
 
   useEffect(() => {
     const idle = (window as any).requestIdleCallback;
@@ -96,15 +105,16 @@ const EditorContent: React.FC<EditorContentProps> = ({
     const view = editorViewRef.current;
     const pv = previewRef.current;
     if (!view || !pv) return;
-    const onScroll = () => {
-      const scroller = view.scrollDOM;
-      if (scroller.scrollHeight <= scroller.clientHeight) return;
-      const ratio = scroller.scrollTop / Math.max(1, scroller.scrollHeight - scroller.clientHeight);
-      pv.scrollTop = ratio * (pv.scrollHeight - pv.clientHeight);
-    };
-    const scroller = view.scrollDOM;
-    scroller.addEventListener('scroll', onScroll);
-    return () => scroller.removeEventListener('scroll', onScroll);
+
+    // Remove the previous scroll synchronization
+    // const onScroll = () => { ... }
+    // const scroller = view.scrollDOM;
+    // scroller.addEventListener('scroll', onScroll);
+    // return () => scroller.removeEventListener('scroll', onScroll);
+    
+    // We do NOT want to sync scroll on every scroll event anymore.
+    // We only want to sync when the user moves the cursor (click or arrow keys),
+    // which is handled in handleEditorUpdate.
   }, [activeNote.id]);
 
   const createAttachmentId = () => `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -323,8 +333,35 @@ const EditorContent: React.FC<EditorContentProps> = ({
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       EditorState.tabSize.of(2),
       pasteHandler,
+      searchPanelTheme,
+      searchLocalization,
+      keymap.of([{ key: "Mod-f", run: openSearchPanel }]),
     ];
   }, [isReadOnly, activeNote.id]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        const view = editorViewRef.current;
+        if (view && view.hasFocus) {
+           // Already focused, let CodeMirror handle it (via keymap)
+           // But if we want to ensure browser search doesn't show up:
+           e.preventDefault();
+           openSearchPanel(view);
+           return;
+        }
+        
+        // If not focused, but we want to intercept Cmd+F to search in editor
+        if (view && viewMode === 'edit') {
+           e.preventDefault();
+           view.focus();
+           openSearchPanel(view);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [viewMode]);
 
   const handleEditorChange = (value: string, viewUpdate: ViewUpdate) => {
     onUpdateNote(activeNote.id, { content: value });
@@ -334,12 +371,46 @@ const EditorContent: React.FC<EditorContentProps> = ({
   };
 
   const handleEditorUpdate = (vu: ViewUpdate) => {
-    if (vu.selectionSet && !vu.docChanged) {
+    // Handle cursor movement / selection change
+    if (vu.selectionSet) {
       const sel = vu.state.selection.main;
       setSelectionState({ start: sel.from, end: sel.to });
       onSelectionChange(sel.from, sel.to);
+
+      // Sync scroll to cursor position
+      // Calculate cursor position percentage relative to the document
+      const view = editorViewRef.current;
+      const pv = previewRef.current;
+      
+      if (view && pv) {
+        // Get line number of the cursor
+        const lineBlock = view.lineBlockAt(sel.head);
+        const docHeight = view.contentHeight;
+        const windowHeight = view.scrollDOM.clientHeight;
+        
+        // Calculate scroll ratio based on cursor's vertical position in the document
+        // We use the top of the line block as the reference point
+        const cursorTop = lineBlock.top;
+        
+        // Simple ratio mapping: Cursor % in Editor -> Scroll % in Preview
+        // (cursorTop / (docHeight - windowHeight)) * (pv.scrollHeight - pv.clientHeight)
+        // Note: docHeight might be larger than scrollHeight in some implementations, but generally scrollHeight is safer.
+        const scroller = view.scrollDOM;
+        const scrollableHeight = Math.max(1, scroller.scrollHeight - scroller.clientHeight);
+        const previewScrollableHeight = Math.max(1, pv.scrollHeight - pv.clientHeight);
+        
+        // We want the cursor to be roughly in the same relative visual position, 
+        // OR we can just map the cursor's absolute progress in the file.
+        // Let's map absolute progress: "Cursor is at 50% of file -> Scroll preview to 50%"
+        const ratio = Math.min(1, Math.max(0, cursorTop / scrollableHeight));
+        
+        // Smooth scroll to that position
+        pv.scrollTo({ top: ratio * previewScrollableHeight, behavior: 'smooth' });
+      }
     }
   };
+
+  const validNoteIds = useMemo(() => allNotes.map(n => n.id), [allNotes]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -374,7 +445,6 @@ const EditorContent: React.FC<EditorContentProps> = ({
         >
           <div className="flex-1 h-full">
             <CodeMirror
-              key={activeNote.id}
               value={activeNote.content}
               height="100%"
               basicSetup={{ lineNumbers: true, highlightActiveLineGutter: false }}
@@ -426,12 +496,13 @@ const EditorContent: React.FC<EditorContentProps> = ({
               )}
               <div className="blog-content">
                 <MarkdownPreview 
-                  content={previewContent} 
+                  // key={activeNote.id} // REMOVED: We want to reuse components (CodeBlock, Mermaid) to keep 'isLoaded' state
+                  content={activeNote.content} 
                   attachments={activeNote.attachments} 
                   theme={markdownTheme} 
                   showToc={viewMode === 'view'} 
                   onLinkClick={onLinkClick} 
-                  validNoteIds={allNotes.map(n => n.id)}
+                  validNoteIds={validNoteIds}
                 />
               </div>
             </div>

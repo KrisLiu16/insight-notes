@@ -40,7 +40,7 @@ if (!gotTheLock) {
       minHeight: 640,
       icon: iconPath,
       webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
+        preload: path.join(__dirname, 'preload.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false, // Ensure preload has access to necessary APIs
@@ -85,7 +85,77 @@ if (!gotTheLock) {
       }
     });
 
-    Menu.setApplicationMenu(null);
+    ipcMain.handle('proxy-request', async (event, { url, options }) => {
+      try {
+        const response = await fetch(url, options);
+        const headers = {};
+        response.headers.forEach((value, key) => {
+          headers[key] = value;
+        });
+        
+        // Read body as text first to avoid stream issues
+        const text = await response.text();
+        
+        // Try to parse as JSON if possible, but keep raw text available
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {}
+
+        return {
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText,
+          headers: headers,
+          text: text,
+          json: json
+        };
+      } catch (error) {
+        return { error: error.message };
+      }
+    });
+
+    const template = [
+      {
+        label: '文件',
+        submenu: [
+          { label: '新建笔记', click: () => { if (mainWindow) mainWindow.webContents.send('app:navigate', { action: 'home' }); } },
+          { type: 'separator' },
+          { role: 'close', label: '关闭窗口' },
+          { role: 'quit', label: '退出' },
+        ],
+      },
+      {
+        label: '编辑',
+        submenu: [
+          { role: 'copy', label: '复制' },
+          { role: 'paste', label: '粘贴' },
+          { role: 'selectAll', label: '全选' },
+        ],
+      },
+      {
+        label: '导航',
+        submenu: [
+          { label: '回到首页', click: () => { if (mainWindow) mainWindow.webContents.send('app:navigate', { action: 'home' }); } },
+          { label: '返回上一页', click: () => { if (mainWindow) mainWindow.webContents.send('app:navigate', { action: 'back' }); } },
+        ],
+      },
+      {
+        label: '视图',
+        submenu: [
+          { role: 'reload', label: '刷新' },
+          { role: 'togglefullscreen', label: '切换全屏' },
+          { role: 'toggleDevTools', label: '开发者工具' },
+        ],
+      },
+      {
+        label: '帮助',
+        submenu: [
+          { label: '官方网站', click: () => shell.openExternal('https://example.com') },
+        ],
+      },
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
     createWindow();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

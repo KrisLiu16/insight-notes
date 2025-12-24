@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
 import mermaid from 'mermaid';
 
 interface MermaidProps {
@@ -12,6 +12,16 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   const [svg, setSvg] = useState<string>('');
 
   useEffect(() => {
+    let canceled = false;
+    
+    // When chart changes, if we have an existing SVG (from a previous chart), 
+    // we should clear it or show a loading state to avoid showing the wrong chart.
+    // However, flickering to white might be annoying.
+    // But since we removed the 'key' prop from MarkdownPreview, components are reused.
+    // So 'svg' state currently holds the OLD chart's SVG.
+    // We MUST clear it immediately to prevent showing Chart A while calculating Chart B.
+    setSvg(''); 
+
     if (!mermaidInitialized) {
       mermaid.initialize({
         startOnLoad: false,
@@ -46,6 +56,7 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
             rx: 14px;
             ry: 14px;
             fill: #F8FAFC;
+            stroke: #E2E8F0;
           }
           .marker {
             fill: #A855F7;
@@ -57,18 +68,21 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
     }
 
     const renderChart = async () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || canceled) return;
       try {
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
         const { svg } = await mermaid.render(id, chart);
-        setSvg(svg);
+        if (!canceled) setSvg(svg);
       } catch (error) {
-        console.error('Mermaid render error:', error);
-        setSvg('<div class="text-red-500 text-sm p-2 bg-red-50 rounded">图表语法错误</div>');
+        if (!canceled) {
+          console.error('Mermaid render error:', error);
+          setSvg('<div class="text-red-500 text-sm p-2 bg-red-50 rounded">图表语法错误</div>');
+        }
       }
     };
 
     renderChart();
+    return () => { canceled = true; };
   }, [chart]);
 
   return (
@@ -80,4 +94,4 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   );
 };
 
-export default Mermaid;
+export default memo(Mermaid);

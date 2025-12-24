@@ -16,6 +16,8 @@ import AiReviewModal from './components/AiReviewModal';
 import AiChatPanel, { ChatMessage } from './components/AiChatPanel';
 import ExportModal from './components/ExportModal';
 import GitReportModal from './components/GitReportModal';
+import DevToolsModal from './components/DevToolsModal';
+import DataMigrationModal from './components/DataMigrationModal';
 
 const EmptyState: React.FC<{ onCreateNote: () => void }> = ({ onCreateNote }) => (
   <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/30 text-slate-400 animate-in fade-in duration-500">
@@ -52,6 +54,8 @@ const App = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [isAiPolishing, setIsAiPolishing] = useState(false);
+  const isAiProcessingRef = useRef(false);
+  const [aiElapsedTime, setAiElapsedTime] = useState(0);
   const [isCopied, setIsCopied] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -94,8 +98,12 @@ const App = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isGitReportOpen, setIsGitReportOpen] = useState(false);
+  const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
+  const [isDataMigrationOpen, setIsDataMigrationOpen] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const historyTimerRef = useRef<number | null>(null);
+  const aiTimerRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const lastSnapshotKeyRef = useRef<string>('');
   const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const selectionMapRef = useRef<Record<string, { start: number; end: number }>>({});
@@ -120,7 +128,7 @@ const App = () => {
         e.preventDefault();
         setIsExportOpen(true);
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !e.isComposing) {
         e.preventDefault();
         polishRef.current();
       }
@@ -135,6 +143,22 @@ const App = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.desktop?.onNavigate?.((payload: { action: string }) => {
+        if (!payload || !payload.action) return;
+        if (payload.action === 'home' || payload.action === 'back') {
+          if (isAiProcessingRef.current) {
+            alert('AI 正在处理当前文档，请稍后再试');
+            return;
+          }
+          setSelectedNoteId(null);
+          setIsMobileMenuOpen(false);
+        }
+      });
+    } catch (e) {}
   }, []);
 
   useEffect(() => {
@@ -156,14 +180,14 @@ const App = () => {
 
 1. **配置 AI**：打开左下角「设置」，填入你的模型与 API Key（支持 Gemini、OpenAI、DeepSeek 或本地 Ollama）。
 2. **创建笔记**：点击侧边栏「+ 新建笔记」。
-3. **AI 助手**：使用「分析」自动生成标签与摘要；使用「润色」优化措辞。
+3. **AI 助手**：使用「分析」自动生成标签与摘要；使用「编辑」优化措辞。
 
 ## 常用快捷键
 
 - \`Cmd/Ctrl + K\`：命令面板 / 全局搜索
 - \`Cmd/Ctrl + S\`：保存
 - \`Cmd/Ctrl + Shift + P\`：导出
-- \`Cmd/Ctrl + Enter\`：AI 润色
+- \`Cmd/Ctrl + Enter\`：AI 编辑
 - \`Cmd/Ctrl + Z\` / \`Cmd/Ctrl + Shift + Z\`：撤销 / 重做
 
 ## 视图与布局
@@ -176,7 +200,7 @@ const App = () => {
     A[灵感] --> B(草稿)
     B --> C{AI 助手}
     C -- 分析 --> D[标签/摘要]
-    C -- 润色 --> E[优化文本]
+    C -- 编辑 --> E[优化文本]
     D --> F[知识库]
     E --> F
 \`\`\`
@@ -236,8 +260,31 @@ const App = () => {
         n => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || n.tags.some(t => t.toLowerCase().includes(q)),
       );
     }
-    return result.sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [notes, selectedCategory, searchQuery]);
+    const sortBy = settings.sortBy || 'updatedAt';
+    const order = settings.sortOrder || 'desc';
+    const cmp = (a: Note, b: Note) => {
+      let av: any = 0;
+      let bv: any = 0;
+      switch (sortBy) {
+        case 'updatedAt':
+          av = a.updatedAt; bv = b.updatedAt; break;
+        case 'createdAt':
+          av = a.createdAt; bv = b.createdAt; break;
+        case 'title':
+          av = (a.title || '').toLowerCase(); bv = (b.title || '').toLowerCase(); break;
+        case 'category':
+          av = (a.category || '').toLowerCase(); bv = (b.category || '').toLowerCase(); break;
+        case 'tagCount':
+          av = (a.tags || []).length; bv = (b.tags || []).length; break;
+        default:
+          av = a.updatedAt; bv = b.updatedAt;
+      }
+      if (av === bv) return 0;
+      if (order === 'asc') return av > bv ? 1 : -1;
+      return av < bv ? 1 : -1;
+    };
+    return result.sort(cmp);
+  }, [notes, selectedCategory, searchQuery, settings.sortBy, settings.sortOrder]);
 
   const categories = useMemo(() => {
     const cats = new Set<string>();
@@ -248,6 +295,11 @@ const App = () => {
   }, [notes]);
 
   const activeNote = currentNote;
+  const isAiProcessing = isAiAnalyzing || isAiPolishing;
+
+  useEffect(() => {
+    isAiProcessingRef.current = isAiProcessing;
+  }, [isAiProcessing]);
 
   const stats: NoteStats = useMemo(() => {
     if (!activeNote) return { words: 0, chars: 0, readingTime: 0 };
@@ -265,9 +317,13 @@ const App = () => {
   };
 
   const handleCreateNote = () => {
+    if (isAiProcessing) {
+      alert('AI 正在处理当前文档，请稍后再试');
+      return;
+    }
     const newNote: Note = {
       id: generateId(),
-      title: '未命名灵感',
+      title: '未命名笔记',
       content: '',
       category: selectedCategory !== 'all' && selectedCategory !== 'uncategorized' ? selectedCategory : '',
       tags: [],
@@ -440,7 +496,7 @@ const App = () => {
     let context = `Title: ${note.title || 'Untitled'}\nTags: ${(note.tags || []).join(', ')}\n\n`;
 
     // Extract references: note://ID or pure 9-digit ID
-    const refRegex = /(?:note:\/\/|\]\()(\d{9})/g;
+    const refRegex = /(?:note:\/\/|\]\()(\d{9,10})/g;
     const matches = Array.from(note.content.matchAll(refRegex));
     const refIds = new Set(matches.map(m => m[1]));
 
@@ -462,6 +518,32 @@ const App = () => {
     return context;
   };
 
+  const startAiTimer = () => {
+    setAiElapsedTime(0);
+    if (aiTimerRef.current) clearInterval(aiTimerRef.current);
+    aiTimerRef.current = setInterval(() => {
+      setAiElapsedTime(prev => prev + 1);
+    }, 1000);
+  };
+
+  const stopAiTimer = () => {
+    if (aiTimerRef.current) {
+      clearInterval(aiTimerRef.current);
+      aiTimerRef.current = null;
+    }
+    setAiElapsedTime(0);
+  };
+
+  const cancelAiOperation = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    stopAiTimer();
+    setIsAiAnalyzing(false);
+    setIsAiPolishing(false);
+  };
+
   const handleAiAnalyze = async () => {
     if (!activeNote) return;
     if (!settings.apiKey && !process.env.API_KEY && !settings.baseUrl?.includes('localhost')) {
@@ -471,11 +553,22 @@ const App = () => {
     }
 
     setIsAiAnalyzing(true);
+    startAiTimer();
+    abortControllerRef.current = new AbortController();
+    
     try {
       const context = getNoteContext(activeNote);
-      const result = await generateTagsAndSummary(context, settings.apiKey, settings.customAnalyzePrompt, settings.baseUrl, settings.model);
+      const result = await generateTagsAndSummary(
+        context, 
+        settings.apiKey, 
+        settings.customAnalyzePrompt, 
+        settings.baseUrl, 
+        settings.model,
+        abortControllerRef.current.signal
+      );
       setPendingAnalyze({ tags: result.tags || [], summary: result.summary });
     } catch (error: any) {
+      if (error.message === '操作已取消') return;
       if (error.message === 'API_KEY_MISSING') {
         setIsSettingsOpen(true);
       } else {
@@ -483,6 +576,8 @@ const App = () => {
       }
     } finally {
       setIsAiAnalyzing(false);
+      stopAiTimer();
+      abortControllerRef.current = null;
     }
   };
 
@@ -495,11 +590,22 @@ const App = () => {
     }
 
     setIsAiPolishing(true);
+    startAiTimer();
+    abortControllerRef.current = new AbortController();
+
     try {
       const context = getNoteContext(activeNote);
-      const polished = await polishContent(context, settings.apiKey, settings.customPolishPrompt, settings.baseUrl, settings.model);
+      const polished = await polishContent(
+        context, 
+        settings.apiKey, 
+        settings.customPolishPrompt, 
+        settings.baseUrl, 
+        settings.model,
+        abortControllerRef.current.signal
+      );
       setPendingPolish(polished);
     } catch (error: any) {
+      if (error.message === '操作已取消') return;
       if (error.message === 'API_KEY_MISSING') {
         setIsSettingsOpen(true);
       } else {
@@ -507,6 +613,8 @@ const App = () => {
       }
     } finally {
       setIsAiPolishing(false);
+      stopAiTimer();
+      abortControllerRef.current = null;
     }
   };
 
@@ -569,57 +677,72 @@ const App = () => {
     setIsChatOpen(true);
   };
 
-  const handleExportData = async () => {
-    const mergedNotes = currentNote
-      ? (() => {
-          const idx = notes.findIndex(n => n.id === currentNote.id);
-          if (idx === -1) return [currentNote, ...notes];
-          const clone = [...notes];
-          clone[idx] = currentNote;
-          return clone;
-        })()
-      : notes;
-    const payload = {
-      version: 'zhishi-v1',
-      exportedAt: new Date().toISOString(),
-      notes: mergedNotes,
-      settings,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    await saveFile(blob, { suggestedName: `zhishi-backup-${new Date().toISOString().slice(0, 10)}.json`, mime: 'application/json' });
+  const handleExportData = () => {
+    setIsDataMigrationOpen(true);
   };
 
   const handleImportData = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result as string);
-        if (!parsed.notes || !Array.isArray(parsed.notes)) throw new Error('缺少 notes 字段');
-        if (!parsed.settings || typeof parsed.settings !== 'object') throw new Error('缺少 settings 字段');
+    // Legacy support for direct file dropping if needed, 
+    // but now we prefer opening the modal. 
+    // However, SettingsModal might pass a file directly if using the old input.
+    // We should probably update SettingsModal to just open the migration modal.
+    setIsDataMigrationOpen(true);
+  };
 
-        // 兼容旧版本 ID 生成
-        const migratedNotes = parsed.notes.map((note: any) => ({
-          ...note,
-          id: note.id && /^\d{9}$/.test(note.id) ? note.id : generateId() // 如果没有 9 位数字 ID，则生成一个新的
-        }));
+  const handleDataImport = (data: { settings?: Partial<AppSettings>; notes?: Note[] }, strategy: 'overwrite' | 'keep_both' | 'skip') => {
+    if (data.settings) {
+      const newSettings = { ...settings, ...data.settings };
+      setSettings(newSettings);
+      saveSettings(newSettings);
+    }
 
-        const firstNote = migratedNotes[0] || null;
-        setNotes(migratedNotes);
-        saveNotes(migratedNotes);
-        setSettings(parsed.settings);
-        saveSettings(parsed.settings);
-        setSelectedNoteId(firstNote?.id || null);
-        setCurrentNote(firstNote);
-        setHistory(firstNote ? [firstNote] : []);
-        setHistoryIndex(firstNote ? 0 : -1);
-        lastSnapshotKeyRef.current = firstNote ? snapshotKey(firstNote) : '';
-        setIsSettingsOpen(false);
-        alert('导入完成，当前数据已被覆盖');
-      } catch (err: any) {
-        alert(`导入失败: ${err.message || err}`);
+    if (data.notes && data.notes.length > 0) {
+      let mergedNotes = [...notes];
+      const incomingNotes = data.notes;
+      const existingIds = new Set(notes.map(n => n.id));
+
+      if (strategy === 'keep_both') {
+        // IDs are already regenerated in DataMigrationModal if needed, or we check collisions here
+        // The modal regenerates IDs for ALL imported notes if 'keep_both' is selected? 
+        // Actually the modal logic says: `id: n.id && ... ? String(n.id) : generateId()`.
+        // If we want 'keep_both', we should probably regenerate IDs for colliding notes OR all notes.
+        // Let's rely on the modal to have handled ID generation or just handle collisions here.
+        // Wait, the modal code I wrote does NOT regenerate IDs if they look valid.
+        // So we need to handle 'keep_both' by regenerating IDs for collisions here or blindly adding.
+        
+        // Let's refine: The modal passes `notesToImport`.
+        // If strategy is keep_both, we should ensure no ID collisions.
+        const notesToAdd = incomingNotes.map(n => {
+            if (existingIds.has(n.id)) {
+                return { ...n, id: generateId(), title: `${n.title} (Imported)` };
+            }
+            return n;
+        });
+        mergedNotes = [...notesToAdd, ...mergedNotes]; // Add new notes to top
+      } else if (strategy === 'overwrite') {
+        // Remove existing notes that are in the import list, then add imported ones
+        const importIds = new Set(incomingNotes.map(n => n.id));
+        mergedNotes = mergedNotes.filter(n => !importIds.has(n.id));
+        mergedNotes = [...incomingNotes, ...mergedNotes];
+      } else if (strategy === 'skip') {
+        // Only add notes that don't exist
+        const notesToAdd = incomingNotes.filter(n => !existingIds.has(n.id));
+        mergedNotes = [...notesToAdd, ...mergedNotes];
       }
-    };
-    reader.readAsText(file);
+      
+      // Sort and save
+      mergedNotes.sort((a, b) => b.updatedAt - a.updatedAt);
+      setNotes(mergedNotes);
+      saveNotes(mergedNotes);
+      
+      // Update UI if needed
+      if (!selectedNoteId && mergedNotes.length > 0) {
+        // Optional: select the first imported note
+      }
+      alert(`导入成功！已处理 ${data.notes.length} 篇笔记。`);
+    } else if (data.settings) {
+      alert('设置已更新');
+    }
   };
 
   const handleSidebarClose = () => {
@@ -631,6 +754,10 @@ const App = () => {
   };
 
   const handleSelectNote = (id: string) => {
+    if (isAiProcessing) {
+      alert('AI 正在处理当前文档，请稍后再试');
+      return;
+    }
     setSelectedNoteId(id);
     setIsMobileMenuOpen(false);
     const sel = selectionMapRef.current[id];
@@ -656,7 +783,7 @@ const App = () => {
       }
     }
     // 兼容纯数字 ID 跳转
-    if (href.match(/^\d{9}$/)) {
+    if (href.match(/^\d{9,10}$/)) {
       const target = notes.find(n => n.id === href);
       if (target) {
         handleSelectNote(target.id);
@@ -675,8 +802,34 @@ const App = () => {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSave={handleSaveSettings}
-        onExportData={handleExportData}
-        onImportData={handleImportData}
+        onCreateNote={(note) => {
+            if (isAiProcessing) {
+              alert('AI 正在处理当前文档，请稍后再试');
+              return;
+            }
+            const updatedNotes = [note, ...notes];
+            setNotes(updatedNotes);
+            saveNotes(updatedNotes);
+            setSelectedNoteId(note.id);
+            setCurrentNote(note);
+            setViewMode('edit');
+            
+            const sel = { start: 0, end: 0 };
+            selectionMapRef.current[note.id] = sel;
+            setSelectionForNote(sel);
+            const snap: NoteSnapshot = { note: note, selection: sel };
+            setHistory([snap]);
+            setHistoryIndex(0);
+            lastSnapshotKeyRef.current = snapshotKey(note);
+            setIsSettingsOpen(false);
+        }}
+        onOpenMigration={() => {
+          // Keep settings open? No, maybe close settings and open migration, or open migration on top.
+          // Modal stacking works if z-index is correct. DataMigrationModal has z-[120], SettingsModal z-[100].
+          // So we can keep settings open or close it. Closing it feels cleaner for "migration".
+          // But user might want to go back. Let's try stacking.
+          setIsDataMigrationOpen(true);
+        }}
       />
 
       <CommandPalette
@@ -684,7 +837,7 @@ const App = () => {
         onClose={() => setIsCommandOpen(false)}
         notes={notes}
         onSelectNote={id => {
-          setSelectedNoteId(id);
+          handleSelectNote(id);
         }}
       />
 
@@ -716,6 +869,7 @@ const App = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCommand={() => setIsCommandOpen(true)}
         onOpenGitReport={() => setIsGitReportOpen(true)}
+        onOpenDevTools={() => setIsDevToolsOpen(true)}
         onClose={handleSidebarClose}
         onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
       />
@@ -731,6 +885,13 @@ const App = () => {
           onSelectNote={handleSelectNote}
           onDeleteNote={requestDeleteNote}
           onCloseList={() => setIsNoteListOpen(false)}
+          sortBy={settings.sortBy}
+          sortOrder={settings.sortOrder}
+          onChangeSort={(sb, so) => {
+            const next = { ...settings, sortBy: sb, sortOrder: so };
+            setSettings(next);
+            saveSettings(next);
+          }}
         />
 
         <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden z-0 min-w-0">
@@ -745,11 +906,15 @@ const App = () => {
                 isAiPolishing={isAiPolishing}
                 isCopied={isCopied}
                 isFullScreen={isFullScreen}
-                canUndo={historyIndex > 0}
-                canRedo={historyIndex < history.length - 1}
                 onToggleSidebar={() => setIsSidebarOpen(true)}
                 onToggleNoteList={() => setIsNoteListOpen(true)}
-                onBack={() => setSelectedNoteId(null)}
+                onBack={() => {
+                  if (isAiProcessing) {
+                    alert('AI 正在处理当前文档，请稍后再试');
+                    return;
+                  }
+                  setSelectedNoteId(null);
+                }}
                 onTitleChange={value => handleUpdateNote(activeNote.id, { title: value })}
                 onChangeViewMode={mode => setViewMode(mode)}
                 onAnalyze={handleAiAnalyze}
@@ -758,8 +923,6 @@ const App = () => {
                 onExport={() => setIsExportOpen(true)}
                 onToggleChat={() => setIsChatOpen(v => !v)}
                 onToggleFullScreen={handleToggleFullScreen}
-                onUndo={undoNote}
-                onRedo={redoNote}
               />
               <EditorContent
                 activeNote={activeNote}
@@ -798,6 +961,22 @@ const App = () => {
         onCancel={cancelDelete}
         onConfirm={confirmDeleteNote}
       />
+      {/* AI Operation Status & Cancel */}
+      {(isAiAnalyzing || isAiPolishing) && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white px-5 py-3 rounded-full shadow-lg border border-slate-200 animate-in fade-in slide-in-from-top-4 duration-300">
+           <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></div>
+           <span className="text-sm font-medium text-slate-700">
+             {isAiAnalyzing ? '正在分析...' : '正在编辑...'} ({aiElapsedTime.toFixed(0)}s)
+           </span>
+           <button 
+             onClick={cancelAiOperation}
+             className="ml-2 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs rounded-full transition-colors"
+           >
+             取消
+           </button>
+        </div>
+      )}
+
       <AiChatPanel
         open={isChatOpen}
         messages={chatMessages}
@@ -809,6 +988,7 @@ const App = () => {
         onNewChat={handleNewChat}
         onInsertContext={activeNote ? handleInsertContext : undefined}
         noteTitle={activeNote?.title}
+        modelName={settings.model}
       />
       <AiReviewModal
         open={!!pendingAnalyze}
@@ -839,6 +1019,30 @@ const App = () => {
         isOpen={isGitReportOpen}
         onClose={() => setIsGitReportOpen(false)}
         settings={settings}
+        allNotes={notes}
+        onCreateNote={(noteOrNotes) => {
+          const newItems = Array.isArray(noteOrNotes) ? noteOrNotes : [noteOrNotes];
+          setNotes(prev => {
+             const updated = [...newItems, ...prev];
+             saveNotes(updated);
+             return updated;
+          });
+          
+          // alert('笔记已创建！');
+        }}
+      />
+      
+      <DevToolsModal
+        isOpen={isDevToolsOpen}
+        onClose={() => setIsDevToolsOpen(false)}
+      />
+
+      <DataMigrationModal
+        isOpen={isDataMigrationOpen}
+        onClose={() => setIsDataMigrationOpen(false)}
+        currentSettings={settings}
+        currentNotes={notes}
+        onImport={handleDataImport}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronRight, Columns, Copy, Download, Edit3, Eye, Fingerprint, List, Loader2, Maximize2, Minimize2, MessageSquare, PenTool, Redo2, Sidebar, Sparkles, Undo2 } from 'lucide-react';
+import { Check, ChevronRight, Columns, Copy, Download, Edit3, Eye, Fingerprint, List, Loader2, Maximize2, Minimize2, MessageSquare, PenTool, Sidebar, Sparkles } from 'lucide-react';
 import { Note, ViewMode } from '../types';
 import { useState } from 'react';
 
@@ -23,10 +23,7 @@ interface EditorToolbarProps {
   onExport: () => void;
   onToggleChat: () => void;
   onToggleFullScreen: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
+  
 }
 
 const IdBadge = ({ id, title }: { id: string; title: string }) => {
@@ -89,10 +86,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onExport,
   onToggleChat,
   onToggleFullScreen,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
 }) => (
   <div className="h-16 px-4 md:px-6 border-b border-slate-100 flex items-center justify-between bg-white/90 backdrop-blur-md z-20 shrink-0">
     <div className="flex items-center gap-3 overflow-hidden flex-1 mr-4">
@@ -220,24 +213,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
       </button>
 
-      <div className="flex items-center gap-1">
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className={`p-2 rounded-lg transition-colors ${canUndo ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-slate-200 cursor-not-allowed'}`}
-          title="撤销 (Ctrl/Cmd+Z)"
-        >
-          <Undo2 size={18} />
-        </button>
-        <button
-          onClick={onRedo}
-          disabled={!canRedo}
-          className={`p-2 rounded-lg transition-colors ${canRedo ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-slate-200 cursor-not-allowed'}`}
-          title="前进 (Ctrl/Cmd+Shift+Z)"
-        >
-          <Redo2 size={18} />
-        </button>
-      </div>
+      
     </div>
   </div>
 );

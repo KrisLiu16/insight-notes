@@ -80,7 +80,7 @@ const TagEditor: React.FC<TagEditorProps> = ({ tags, onChange }) => {
           onChange={e => setInputValue(e.target.value)}
           onBlur={handleInputConfirm}
           onKeyDown={e => {
-            if (e.key === 'Enter') handleInputConfirm();
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleInputConfirm();
             if (e.key === 'Escape') {
               setInputVisible(false);
               setEditingTag(null);

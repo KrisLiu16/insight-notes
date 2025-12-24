@@ -1,4 +1,4 @@
-import React, { memo, useDeferredValue, useMemo, useState } from 'react';
+import React, { memo, useDeferredValue, useMemo, useState, useRef, useEffect } from 'react';
 import ReactMarkdown, { UrlTransform, defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -52,6 +52,119 @@ const slugify = (text: string) =>
     .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+const FONT_FAMILY = '"JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace';
+
+const CodeBlock = memo(({ language, codeString, style }: { language: string; codeString: string, style: any }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  
+  // Pre-calculate line numbers for diff highlighting to avoid re-calculation during render
+  const { addSet, delSet } = useMemo(() => {
+    const lines = codeString.split('\n');
+    const add = new Set<number>();
+    const del = new Set<number>();
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('+')) add.add(i + 1);
+      if (lines[i].startsWith('-')) del.add(i + 1);
+    }
+    return { addSet: add, delSet: del };
+  }, [codeString]);
+
+  useEffect(() => {
+    if (isLoaded) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          // Use requestAnimationFrame to ensure we don't block the main thread right at the scroll event
+          requestAnimationFrame(() => setIsLoaded(true));
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' } // Load well before it comes into view
+    );
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isLoaded]);
+
+  return (
+    <div ref={ref} className={`relative group my-4 rounded-lg overflow-hidden ${style.codeBorder}`}>
+      {language && (
+        <div className="absolute top-2 left-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-white/90 px-2 py-1 rounded-md border border-slate-200 shadow-sm opacity-0 group-hover:opacity-100 pointer-events-none z-10">
+          {language}
+        </div>
+      )}
+      <CopyButton text={codeString} />
+      
+      {/* 
+        Double Rendering Strategy to eliminate flicker:
+        1. Always render the placeholder <pre> to maintain layout stability.
+        2. Render SyntaxHighlighter on top (absolute) or replace it only when fully ready.
+        
+        However, Absolute positioning might cause height issues if fonts differ slightly.
+        Best approach: Ensure <pre> matches SyntaxHighlighter EXACTLY.
+      */}
+      
+      {isLoaded ? (
+        <SyntaxHighlighter
+          style={style.codeStyle}
+          language={language || 'text'}
+          PreTag="div"
+          showLineNumbers={!!language}
+          wrapLongLines={false}
+          wrapLines
+          lineProps={(lineNumber: number) => {
+            if (addSet.has(lineNumber)) return { style: { backgroundColor: '#e6ffed' } };
+            if (delSet.has(lineNumber)) return { style: { backgroundColor: '#ffebe9' } };
+            return {};
+          }}
+          lineNumberStyle={{ 
+            color: '#94a3b8', 
+            fontSize: '13px', 
+            paddingRight: '12px', 
+            fontFamily: FONT_FAMILY 
+          }}
+          customStyle={{ 
+            margin: 0, 
+            borderRadius: 0, 
+            backgroundColor: style.codeBg, 
+            fontSize: '13px', 
+            padding: '24px 18px 18px',
+            fontFamily: FONT_FAMILY,
+            lineHeight: '1.5',
+          }}
+          codeTagProps={{
+            style: { fontFamily: FONT_FAMILY }
+          }}
+        >
+          {codeString}
+        </SyntaxHighlighter>
+      ) : (
+        <pre 
+          className="overflow-x-auto" 
+          style={{ 
+            backgroundColor: style.codeBg,
+            margin: 0,
+            padding: '24px 18px 18px',
+            fontFamily: FONT_FAMILY,
+            fontSize: '13px',
+            lineHeight: '1.5',
+            color: '#333', // Use a visible color instead of transparent to avoid "pop-in" effect
+            whiteSpace: 'pre-wrap', // Match SyntaxHighlighter's wrapping behavior
+            wordBreak: 'break-all',
+          }}
+        >
+          {codeString}
+        </pre>
+      )}
+    </div>
+  );
+}, (prev, next) => prev.codeString === next.codeString && prev.language === next.language && prev.style === next.style);
+
 const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true, onLinkClick, validNoteIds }) => {
   const deferredContent = useDeferredValue(content);
   const headings = useMemo(() => {
@@ -61,8 +174,14 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
         const match = /^(#{1,6})\s+(.+)$/.exec(line);
         if (!match) return null;
         const level = match[1].length;
-        const text = match[2].trim();
-        return { level, text, id: slugify(text) };
+        const rawText = match[2].trim();
+        // Simple strip: remove **bold**, *italic*, [link](url), `code`
+        const text = rawText
+          .replace(/\*\*(.*?)\*\*/g, '$1')
+          .replace(/\*(.*?)\*/g, '$1')
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          .replace(/`([^`]+)`/g, '$1');
+        return { level, text, id: slugify(rawText) };
       })
       .filter(Boolean) as { level: number; text: string; id: string }[];
   }, [deferredContent]);
@@ -113,17 +232,31 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
       },
       pastel: {
         prose: 'prose-slate',
-        codeStyle: oneLight,
-        codeBg: '#f4f2ff',
-        blockquote: 'border-indigo-400 bg-indigo-50/70 text-slate-700',
-        tableHeader: 'bg-indigo-50 text-indigo-700',
-        tableCell: 'text-slate-700 border-indigo-100',
-        container: 'bg-gradient-to-b from-indigo-50 via-amber-50/60 to-white p-6 rounded-2xl border border-indigo-100 shadow-md shadow-indigo-100/70',
-        link: 'prose-a:text-indigo-600',
-        tableBorder: 'border-indigo-100 divide-indigo-100',
-        codeBorder: 'bg-indigo-50/60',
+        codeStyle: vs,
+        codeBg: '#f6f8fa',
+        blockquote: 'border-[#d0d7de] bg-transparent text-slate-700',
+        tableHeader: 'bg-[#f6f8fa] text-slate-700',
+        tableCell: 'text-slate-700 border-[#d0d7de]',
+        container: 'bg-white p-6 rounded-md border border-[#d0d7de]',
+        link: 'prose-a:text-[#0969da]',
+        tableBorder: 'border-[#d0d7de] divide-[#d0d7de]',
+        codeBorder: 'bg-[#f6f8fa]',
         copyBg: 'bg-white/80',
-        inlineCode: 'bg-indigo-50 text-indigo-800 border border-indigo-100',
+        inlineCode: 'bg-[#f6f8fa] text-slate-800 border border-[#d0d7de]',
+      },
+      github: {
+        prose: 'prose-slate',
+        codeStyle: vs,
+        codeBg: '#f6f8fa',
+        blockquote: 'border-[#d0d7de] bg-transparent text-slate-700',
+        tableHeader: 'bg-[#f6f8fa] text-slate-700',
+        tableCell: 'text-slate-700 border-[#d0d7de]',
+        container: 'bg-white p-6 rounded-md border border-[#d0d7de]',
+        link: 'prose-a:text-[#0969da]',
+        tableBorder: 'border-[#d0d7de] divide-[#d0d7de]',
+        codeBorder: 'bg-[#f6f8fa]',
+        copyBg: 'bg-white/80',
+        inlineCode: 'bg-[#f6f8fa] text-slate-800 border border-[#d0d7de]',
       },
       paper: {
         prose: 'prose-slate prose-p:tracking-wide prose-h1:font-serif prose-h2:font-serif',
@@ -186,6 +319,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
   );
 
   const style = themeStyles[theme] || themeStyles.classic;
+  // const deferredContent = content; // Removed in favor of top-level useDeferredValue
   const allowDataUrl: UrlTransform = (url, key, node) => {
     if (key === 'src' && (node as any).tagName === 'img') {
       if (url.startsWith('attachment:')) {
@@ -196,6 +330,156 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
     }
     return defaultUrlTransform(url);
   };
+
+  const components = useMemo(() => ({
+    pre({ children }) {
+      return <>{children}</>;
+    },
+    input({ node, ...props }) {
+      if (props.type === 'checkbox') {
+        return (
+          <label className="inline-flex items-center gap-2 cursor-default align-middle translate-y-[1px]">
+            <input
+              {...props}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-0 focus:outline-none align-middle"
+              onChange={() => {}}
+            />
+            <span className="text-slate-700 text-sm leading-none">{props.checked ? '' : ''}</span>
+          </label>
+        );
+      }
+      return <input {...props} />;
+    },
+    h1({ children }) {
+      const text = String(children);
+      const id = slugify(text);
+      return <h1 id={id}>{children}</h1>;
+    },
+    h2({ children }) {
+      const text = String(children);
+      const id = slugify(text);
+      return <h2 id={id}>{children}</h2>;
+    },
+    h3({ children }) {
+      const text = String(children);
+      const id = slugify(text);
+      return <h3 id={id}>{children}</h3>;
+    },
+    h4({ children }) {
+      const text = String(children);
+      const id = slugify(text);
+      return <h4 id={id}>{children}</h4>;
+    },
+    h5({ children }) {
+      const text = String(children);
+      const id = slugify(text);
+      return <h5 id={id}>{children}</h5>;
+    },
+    h6({ children }) {
+      const text = String(children);
+      const id = slugify(text);
+      return <h6 id={id}>{children}</h6>;
+    },
+    code({ node, inline, className, children, ...props }: any) {
+      const match = /language-(\w+)/.exec(className || '');
+      const language = match ? match[1] : '';
+      const codeString = String(children).replace(/\n$/, '');
+      const isMatch = !!match;
+      const isBlock = isMatch || codeString.includes('\n');
+
+      if (isBlock && language === 'mermaid') {
+        return <Mermaid chart={codeString} />;
+      }
+
+      if (isBlock) {
+        return <CodeBlock language={language} codeString={codeString} style={style} />;
+      }
+
+      return (
+        <span className={`${className} inline-code-marker px-1.5 py-0.5 rounded text-sm font-mono ${style.inlineCode}`} {...props}>
+          {children}
+        </span>
+      );
+    },
+    // Customizing table styles
+    table({ children }) {
+      const borderClass = style.tableBorder || 'border-slate-200 divide-slate-200';
+      return (
+        <div className={`overflow-x-auto my-6 border rounded-lg shadow-sm ${borderClass}`}>
+          <table className={`min-w-full divide-y ${borderClass}`}>
+            {children}
+          </table>
+        </div>
+      );
+    },
+    thead({ children }) {
+      return <thead className={style.tableHeader}>{children}</thead>;
+    },
+    th({ children }) {
+      return <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">{children}</th>;
+    },
+    td({ children }) {
+      return <td className={`px-4 py-3 whitespace-nowrap text-sm border-t ${style.tableCell}`}>{children}</td>;
+    },
+    blockquote({ children }) {
+      return (
+        <blockquote className={`border-l-2 pl-3 pr-2 py-0.5 my-2 rounded-md bg-transparent text-slate-700 leading-tight ${style.blockquote} [&>p]:before:content-none [&>p]:after:content-none`}>
+          {children}
+        </blockquote>
+      );
+    },
+    a({ href = '', children, ...props }) {
+      const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        if (href.startsWith('note://') || href.match(/^\d{9,10}$/)) {
+          onLinkClick?.(href);
+          return;
+        }
+        window.open(href, '_blank', 'noopener,noreferrer');
+      };
+      
+      let domain = '';
+      let isInternal = false;
+      let isValidInternal = true;
+
+      try {
+        if (href.startsWith('note://') || href.match(/^\d{9,10}$/)) {
+          isInternal = true;
+          const id = href.replace('note://', '');
+          if (validNoteIds && !validNoteIds.includes(id)) {
+            isValidInternal = false;
+          }
+          domain = isValidInternal ? '内部引用' : '引用失效';
+        } else {
+          domain = new URL(href).host;
+        }
+      } catch (err) {
+        domain = href;
+      }
+
+      if (isInternal && !isValidInternal) {
+        return (
+          <span className="text-red-400 decoration-red-300 line-through decoration-2 cursor-not-allowed" title="该笔记不存在或已被删除">
+            {children}
+            <span className="text-[10px] ml-1 opacity-70">(失效)</span>
+          </span>
+        );
+      }
+
+      return (
+        <a
+          href={href}
+          onClick={handleClick}
+          target={isInternal ? undefined : '_blank'}
+          rel="noreferrer"
+          title={isInternal ? '跳转到笔记' : `外链: ${domain}`}
+          className="underline decoration-[#d0d7de] hover:decoration-current cursor-pointer text-[#0969da]"
+        >
+          {children}
+        </a>
+      );
+    }
+  }), [style, onLinkClick, validNoteIds]); // Dependencies for useMemo
 
   return (
     <div className={`relative prose max-w-none prose-headings:font-bold prose-img:rounded-lg markdown-body break-words ${style.prose} ${style.link} ${style.container}`}>
@@ -211,7 +495,6 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
                     e.preventDefault();
                     const el = document.getElementById(h.id);
                     if (el) {
-                      // 仅在父容器内滚动，避免触发页面级滚动
                       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                   }}
@@ -229,172 +512,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         urlTransform={allowDataUrl}
-        components={{
-          pre({ children }) {
-            return <>{children}</>;
-          },
-          input({ node, ...props }) {
-            if (props.type === 'checkbox') {
-              return (
-                <label className="inline-flex items-center gap-2 cursor-default align-middle translate-y-[1px]">
-                  <input
-                    {...props}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-0 focus:outline-none align-middle"
-                    onChange={() => {}}
-                  />
-                  <span className="text-slate-700 text-sm leading-none">{props.checked ? '' : ''}</span>
-                </label>
-              );
-            }
-            return <input {...props} />;
-          },
-          h1({ children }) {
-            const text = String(children);
-            const id = slugify(text);
-            return <h1 id={id}>{children}</h1>;
-          },
-          h2({ children }) {
-            const text = String(children);
-            const id = slugify(text);
-            return <h2 id={id}>{children}</h2>;
-          },
-          h3({ children }) {
-            const text = String(children);
-            const id = slugify(text);
-            return <h3 id={id}>{children}</h3>;
-          },
-          h4({ children }) {
-            const text = String(children);
-            const id = slugify(text);
-            return <h4 id={id}>{children}</h4>;
-          },
-          h5({ children }) {
-            const text = String(children);
-            const id = slugify(text);
-            return <h5 id={id}>{children}</h5>;
-          },
-          h6({ children }) {
-            const text = String(children);
-            const id = slugify(text);
-            return <h6 id={id}>{children}</h6>;
-          },
-          code({ node, inline, className, children, ...props }: any) {
-            const match = /language-(\w+)/.exec(className || '');
-            const language = match ? match[1] : '';
-            const codeString = String(children).replace(/\n$/, '');
-            const isMatch = !!match;
-            const isBlock = isMatch || codeString.includes('\n');
-
-            if (isBlock && language === 'mermaid') {
-              return <Mermaid chart={codeString} />;
-            }
-
-            if (isBlock) {
-              return (
-                <div className={`relative group my-4 rounded-lg overflow-hidden ${style.codeBorder}`}>
-                  {language && (
-                    <div className="absolute top-2 left-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-white/90 px-2 py-1 rounded-md border border-slate-200 shadow-sm opacity-0 group-hover:opacity-100 pointer-events-none">
-                      {language}
-                    </div>
-                  )}
-                  <CopyButton text={codeString} />
-                  <SyntaxHighlighter
-                    style={style.codeStyle}
-                    language={language || 'text'}
-                    PreTag="div"
-                    showLineNumbers={!!language}
-                    wrapLongLines
-                    lineNumberStyle={{ color: '#94a3b8', fontSize: '12px', paddingRight: '12px' }}
-                    customStyle={{ margin: 0, borderRadius: 0, backgroundColor: style.codeBg, fontSize: '13px', padding: '24px 18px 18px' }}
-                    {...props}
-                  >
-                    {codeString}
-                  </SyntaxHighlighter>
-                </div>
-              );
-            }
-
-            return (
-              <span className={`${className} inline-code-marker px-1.5 py-0.5 rounded text-sm font-mono ${style.inlineCode}`} {...props}>
-                {children}
-              </span>
-            );
-          },
-          // Customizing table styles
-          table({ children }) {
-            const borderClass = style.tableBorder || 'border-slate-200 divide-slate-200';
-            return (
-              <div className={`overflow-x-auto my-6 border rounded-lg shadow-sm ${borderClass}`}>
-                <table className={`min-w-full divide-y ${borderClass}`}>
-                  {children}
-                </table>
-              </div>
-            );
-          },
-          thead({ children }) {
-            return <thead className={style.tableHeader}>{children}</thead>;
-          },
-          th({ children }) {
-            return <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">{children}</th>;
-          },
-          td({ children }) {
-            return <td className={`px-4 py-3 whitespace-nowrap text-sm border-t ${style.tableCell}`}>{children}</td>;
-          },
-          blockquote({ children }) {
-            return <blockquote className={`border-l-4 pl-4 py-1 my-4 italic rounded-r-lg ${style.blockquote}`}>{children}</blockquote>;
-          },
-          a({ href = '', children, ...props }) {
-            const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-              e.preventDefault();
-              if (href.startsWith('note://') || href.match(/^\d{9}$/)) {
-                onLinkClick?.(href);
-                return;
-              }
-              window.open(href, '_blank', 'noopener,noreferrer');
-            };
-            
-            let domain = '';
-            let isInternal = false;
-            let isValidInternal = true;
-
-            try {
-              if (href.startsWith('note://') || href.match(/^\d{9}$/)) {
-                isInternal = true;
-                const id = href.replace('note://', '');
-                if (validNoteIds && !validNoteIds.includes(id)) {
-                  isValidInternal = false;
-                }
-                domain = isValidInternal ? '内部引用' : '引用失效';
-              } else {
-                domain = new URL(href).host;
-              }
-            } catch (err) {
-              domain = href;
-            }
-
-            if (isInternal && !isValidInternal) {
-              return (
-                <span className="text-red-400 decoration-red-300 line-through decoration-2 cursor-not-allowed" title="该笔记不存在或已被删除">
-                  {children}
-                  <span className="text-[10px] ml-1 opacity-70">(失效)</span>
-                </span>
-              );
-            }
-
-            return (
-              <a
-                href={href}
-                onClick={handleClick}
-                target={isInternal ? undefined : '_blank'}
-                rel="noreferrer"
-                title={isInternal ? '跳转到笔记' : `外链: ${domain}`}
-                className="underline decoration-slate-300 hover:decoration-current cursor-pointer text-blue-600"
-              >
-                {children}
-              </a>
-            );
-          }
-        }}
+        components={components as any}
       >
         {deferredContent}
       </ReactMarkdown>

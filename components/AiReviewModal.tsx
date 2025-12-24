@@ -55,7 +55,7 @@ const AiReviewModal: React.FC<AiReviewModalProps> = ({ open, mode, original, pol
         <pre className="p-3 text-xs text-slate-700 whitespace-pre-wrap bg-white max-h-[40vh] overflow-auto custom-scrollbar">{original.content}</pre>
       </div>
       <div className="border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-emerald-50 border-b border-emerald-200 text-xs font-semibold text-emerald-700">润色结果</div>
+        <div className="px-3 py-2 bg-emerald-50 border-b border-emerald-200 text-xs font-semibold text-emerald-700">编辑结果</div>
         <pre className="p-3 text-xs text-slate-800 whitespace-pre-wrap bg-white max-h-[40vh] overflow-auto custom-scrollbar">{polishedContent}</pre>
       </div>
     </div>

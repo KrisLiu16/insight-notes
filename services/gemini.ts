@@ -1,5 +1,5 @@
 
-import { DEFAULT_ANALYZE_PROMPT, DEFAULT_POLISH_PROMPT, DEFAULT_BASE_URL, DEFAULT_MODEL } from "./storage";
+import { DEFAULT_ANALYZE_PROMPT, DEFAULT_POLISH_PROMPT, DEFAULT_MERGE_SUMMARY_PROMPT, DEFAULT_BASE_URL, DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT } from "./storage";
 
 interface AISettings {
   apiKey: string;
@@ -16,7 +16,9 @@ const cleanJsonString = (str: string): string => {
 const callChatCompletion = async (
   messages: { role: string; content: string }[],
   settings: AISettings,
-  jsonMode: boolean = false
+  jsonMode: boolean = false,
+  signal?: AbortSignal,
+  responseFormat?: { type: string }
 ) => {
   const apiKey = settings.apiKey || process.env.API_KEY || '';
   // Normalize Base URL: Remove trailing slash if present, ensure it doesn't already have /chat/completions
@@ -41,23 +43,33 @@ const callChatCompletion = async (
 
   // Note: Not all providers support response_format: { type: "json_object" }
   // We will rely on prompt engineering for JSON, but pass it if we think it might help (e.g. OpenAI/Gemini)
-  if (jsonMode && (model.includes('gpt') || model.includes('gemini'))) {
-     body.response_format = { type: "json_object" };
+  if (jsonMode && (model.includes('gpt') || model.includes('gemini') || model.includes('doubao') || model.includes('deepseek'))) {
+     body.response_format = responseFormat || { type: "json_object" };
   }
 
-  try {
+  const makeRequest = async (currentBody: any) => {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(currentBody),
+      signal
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error ${response.status}: ${errorText}`);
+      let errorMsg = `API Error ${response.status}`;
+      try {
+        const errJson = await response.json();
+        if (errJson && errJson.error && errJson.error.message) {
+          errorMsg = `${errJson.error.code || 'Error'}: ${errJson.error.message}`;
+        }
+      } catch {
+        const errorText = await response.text();
+        if (errorText) errorMsg += `: ${errorText}`;
+      }
+      throw new Error(errorMsg);
     }
 
     const data = await response.json();
@@ -69,16 +81,34 @@ const callChatCompletion = async (
       console.error("Unexpected API response format", data);
       throw new Error("Invalid API response format");
     }
+  };
 
-  } catch (error) {
+  try {
+    return await makeRequest(body);
+  } catch (error: any) {
+    // Fallback logic: If request failed and response_format was used, try again without it
+    if (body.response_format && error.message && (
+      error.message.includes('400') || 
+      error.message.includes('response_format') || 
+      error.message.includes('not supported')
+    )) {
+      console.warn('API call failed with response_format, retrying without it...');
+      delete body.response_format;
+      return await makeRequest(body);
+    }
+
+    if (error.name === 'AbortError') {
+      throw new Error('操作已取消');
+    }
     console.error("AI Request Failed", error);
     throw error;
   }
 };
 
-export const generateTagsAndSummary = async (content: string, apiKey: string, customPrompt?: string, baseUrl?: string, model?: string) => {
+export const generateTagsAndSummary = async (content: string, apiKey: string, customPrompt?: string, baseUrl?: string, model?: string, signal?: AbortSignal) => {
   const systemInstruction = customPrompt || DEFAULT_ANALYZE_PROMPT;
-  const fullSystemInstruction = `${systemInstruction}\n\nIMPORTANT: Return a strict JSON object with keys "tags" (array of strings) and "summary" (string). Do not wrap in markdown code blocks.`;
+  // Use user's prompt directly, no forced JSON injection
+  const fullSystemInstruction = systemInstruction;
 
   const responseText = await callChatCompletion(
     [
@@ -86,19 +116,45 @@ export const generateTagsAndSummary = async (content: string, apiKey: string, cu
       { role: "user", content: content.substring(0, 15000) }
     ],
     { apiKey, baseUrl, model },
-    true
+    false, // Disable JSON mode
+    signal
   );
 
+  // Try parsing JSON first
   try {
-    const cleanedJson = cleanJsonString(responseText);
-    return JSON.parse(cleanedJson);
+    const clean = cleanJsonString(responseText);
+    const data = JSON.parse(clean);
+    if (data && (Array.isArray(data.tags) || typeof data.summary === 'string')) {
+        return { 
+            tags: Array.isArray(data.tags) ? data.tags : [], 
+            summary: data.summary || '' 
+        };
+    }
   } catch (e) {
-    console.error("Failed to parse JSON from AI", responseText);
-    throw new Error("AI returned invalid JSON");
+    // Not JSON, continue to regex fallback
   }
+
+  // Parse text response
+  const tagsMatch = responseText.match(/Tags:\s*(.*)/i);
+  const summaryMatch = responseText.match(/Summary:\s*(.*)/is);
+
+  let tags: string[] = [];
+  if (tagsMatch) {
+    tags = tagsMatch[1].split(/[,，]/).map(t => t.trim()).filter(Boolean);
+  }
+
+  let summary = responseText;
+  if (summaryMatch) {
+    summary = summaryMatch[1].trim();
+  } else {
+     // Fallback: If no "Summary:" prefix, use the whole text (minus tags if present)
+     summary = responseText.replace(/Tags:.*\n?/i, '').trim();
+  }
+
+  return { tags, summary };
 };
 
-export const polishContent = async (content: string, apiKey: string, customPrompt?: string, baseUrl?: string, model?: string): Promise<string> => {
+export const polishContent = async (content: string, apiKey: string, customPrompt?: string, baseUrl?: string, model?: string, signal?: AbortSignal): Promise<string> => {
   const systemInstruction = customPrompt || DEFAULT_POLISH_PROMPT;
 
   const responseText = await callChatCompletion(
@@ -107,7 +163,8 @@ export const polishContent = async (content: string, apiKey: string, customPromp
       { role: "user", content: content }
     ],
     { apiKey, baseUrl, model },
-    false
+    false,
+    signal
   );
 
   return responseText || content;
@@ -121,6 +178,7 @@ export const chatWithAI = async (
   model?: string
 ): Promise<string> => {
   const messages = [
+    { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
     ...history.map(m => ({ role: m.role, content: m.content })),
     { role: 'user', content: prompt },
   ];
@@ -149,4 +207,37 @@ export const generateGitSummary = async (diff: string, context: string, apiKey: 
   );
 
   return responseText || '生成总结失败';
+};
+
+export const generateMergeSummary = async (
+  diff: string, 
+  commitInfo: string, 
+  apiKey: string, 
+  customPrompt?: string, 
+  baseUrl?: string, 
+  model?: string,
+  signal?: AbortSignal
+) => {
+  const systemInstruction = customPrompt || DEFAULT_MERGE_SUMMARY_PROMPT;
+  // Use user's prompt directly, no forced JSON injection
+  const fullSystemInstruction = systemInstruction;
+
+  // Diff truncation to avoid token limits (e.g. 50k chars)
+  const truncatedDiff = diff.substring(0, 50000);
+  const userContent = `Commit Info:\n${commitInfo}\n\nDiff:\n${truncatedDiff}`;
+
+  const responseText = await callChatCompletion(
+    [
+      { role: "system", content: fullSystemInstruction },
+      { role: "user", content: userContent }
+    ],
+    { apiKey, baseUrl, model },
+    false, // Disable JSON mode
+    signal
+  );
+
+  // Return raw text response directly wrapped in an object structure for compatibility
+  return {
+      content: responseText
+  };
 };

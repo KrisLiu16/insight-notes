@@ -70,6 +70,19 @@ pre {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+.markdown-body pre {
+  overflow-x: auto;
+  white-space: pre !important;
+  word-break: normal !important;
+  word-wrap: normal !important;
+}
+.markdown-body pre > code {
+  white-space: pre !important;
+  word-break: normal !important;
+  word-wrap: normal !important;
+  display: block;
+  min-width: max-content;
+}
 .markdown-body .inline-code-marker {
   display: inline !important;
   white-space: break-spaces !important;

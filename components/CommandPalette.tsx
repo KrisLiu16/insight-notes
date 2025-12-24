@@ -47,7 +47,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, notes,
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIndex(i => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' && !e.isComposing) {
         e.preventDefault();
         if (filteredNotes[selectedIndex]) {
           onSelectNote(filteredNotes[selectedIndex].id);
