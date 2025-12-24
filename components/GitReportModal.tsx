@@ -28,7 +28,8 @@ const GitReportModal: React.FC<GitReportModalProps> = ({ isOpen, onClose, settin
   }, [isOpen]);
 
   const handleSelectDir = async () => {
-    if (window.desktop) {
+    // 检查 window.desktop 是否存在
+    if (typeof window.desktop !== 'undefined') {
       const path = await window.desktop.selectDirectory();
       if (path) {
         setRepoPath(path);
