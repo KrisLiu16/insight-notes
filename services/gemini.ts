@@ -127,3 +127,26 @@ export const chatWithAI = async (
   const responseText = await callChatCompletion(messages, { apiKey, baseUrl, model }, false);
   return responseText || '';
 };
+
+export const generateGitSummary = async (diff: string, context: string, apiKey: string, baseUrl?: string, model?: string): Promise<string> => {
+  const systemInstruction = `你是一个技术专家，负责根据 Git Diff 生成工作汇报。
+请总结提供的代码变更（Diff）。
+关注功能性变更和业务影响。
+使用 Markdown 列表格式。
+语言：简体中文。
+额外上下文：${context}`;
+
+  // Diff can be huge, truncate if needed. 20k chars is a safe bet for most models.
+  const truncatedDiff = diff.substring(0, 20000); 
+
+  const responseText = await callChatCompletion(
+    [
+      { role: "system", content: systemInstruction },
+      { role: "user", content: `Diff:\n${truncatedDiff}` }
+    ],
+    { apiKey, baseUrl, model },
+    false
+  );
+
+  return responseText || '生成总结失败';
+};

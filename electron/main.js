@@ -1,7 +1,11 @@
-import { app, BrowserWindow, Menu, shell } from 'electron';
+import { app, BrowserWindow, Menu, shell, ipcMain, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execFile } from 'child_process';
+import util from 'util';
+
+const execFileAsync = util.promisify(execFile);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_PATH = path.join(__dirname, '..', 'dist', 'index.html');
@@ -61,6 +65,25 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    ipcMain.handle('select-directory', async () => {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+      });
+      return result.filePaths[0];
+    });
+
+    ipcMain.handle('run-git', async (event, { cwd, args }) => {
+      try {
+        const { stdout, stderr } = await execFileAsync('git', args, { 
+          cwd, 
+          maxBuffer: 10 * 1024 * 1024 // 10MB
+        });
+        return { stdout, stderr };
+      } catch (error) {
+        return { error: error.message };
+      }
+    });
+
     Menu.setApplicationMenu(null);
     createWindow();
     app.on('activate', () => {

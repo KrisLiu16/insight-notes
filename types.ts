@@ -40,5 +40,9 @@ export interface NoteStats {
 declare global {
   interface Window {
     mermaid: any;
+    desktop?: {
+      selectDirectory: () => Promise<string>;
+      runGit: (cwd: string, args: string[]) => Promise<{ stdout?: string; stderr?: string; error?: string }>;
+    };
   }
 }

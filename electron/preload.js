@@ -1,5 +1,6 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('desktop', {
-  // 预留桥接接口
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  runGit: (cwd, args) => ipcRenderer.invoke('run-git', { cwd, args }),
 });

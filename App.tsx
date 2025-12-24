@@ -15,6 +15,7 @@ import DeleteConfirm from './components/DeleteConfirm';
 import AiReviewModal from './components/AiReviewModal';
 import AiChatPanel, { ChatMessage } from './components/AiChatPanel';
 import ExportModal from './components/ExportModal';
+import GitReportModal from './components/GitReportModal';
 
 const EmptyState: React.FC<{ onCreateNote: () => void }> = ({ onCreateNote }) => (
   <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/30 text-slate-400 animate-in fade-in duration-500">
@@ -92,6 +93,7 @@ const App = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isGitReportOpen, setIsGitReportOpen] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const historyTimerRef = useRef<number | null>(null);
   const lastSnapshotKeyRef = useRef<string>('');
@@ -711,6 +713,7 @@ const App = () => {
         onSelectCategory={cat => setSelectedCategory(cat)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCommand={() => setIsCommandOpen(true)}
+        onOpenGitReport={() => setIsGitReportOpen(true)}
         onClose={handleSidebarClose}
         onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
       />
@@ -828,6 +831,12 @@ const App = () => {
         note={activeNote || null}
         theme={settings.markdownTheme || 'classic'}
         onExportMarkdown={handleExportMarkdown}
+      />
+      
+      <GitReportModal
+        isOpen={isGitReportOpen}
+        onClose={() => setIsGitReportOpen(false)}
+        settings={settings}
       />
     </div>
   );

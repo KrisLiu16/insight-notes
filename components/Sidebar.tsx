@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Hash, LayoutTemplate, PanelLeftClose, Plus, Search, Settings, X } from 'lucide-react';
+import { BookOpen, GitBranch, Hash, LayoutTemplate, PanelLeftClose, Plus, Search, Settings, X } from 'lucide-react';
 import { AppSettings, Note } from '../types';
 
 interface SidebarItemProps {
@@ -39,6 +39,7 @@ interface SidebarProps {
   onSelectCategory: (category: string) => void;
   onOpenSettings: () => void;
   onOpenCommand: () => void;
+  onOpenGitReport: () => void;
   onClose: () => void;
   onCloseMobileMenu: () => void;
 }
@@ -54,6 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectCategory,
   onOpenSettings,
   onOpenCommand,
+  onOpenGitReport,
   onClose,
   onCloseMobileMenu,
 }) => (
@@ -131,7 +133,21 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
     </div>
 
-    <div className="p-3 border-t border-slate-200/50 bg-white/50 backdrop-blur-sm">
+    <div>
+        <div className="flex items-center justify-between px-3 mb-2">
+          <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest font-mono">Tools</h3>
+        </div>
+        <SidebarItem 
+          icon={GitBranch} 
+          label="Git 工作汇报" 
+          onClick={() => {
+            onOpenGitReport();
+            onCloseMobileMenu();
+          }} 
+        />
+      </div>
+
+      <div className="p-3 border-t border-slate-200/50 bg-white/50 backdrop-blur-sm">
       <button
         onClick={() => {
           onOpenSettings();
