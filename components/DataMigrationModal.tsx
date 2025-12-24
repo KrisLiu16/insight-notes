@@ -478,7 +478,7 @@ const DataMigrationModal: React.FC<DataMigrationModalProps> = ({
           ) : (
             <button
               onClick={executeImport}
-              disabled={!parsedData || importSections.size === 0}
+              disabled={!parsedData || (importSections.size === 0 && importSelectedNoteIds.size === 0)}
               className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all text-sm font-medium flex items-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload size={16} />
