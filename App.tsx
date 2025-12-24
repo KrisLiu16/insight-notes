@@ -563,9 +563,9 @@ const App = () => {
 
   const handleInsertContext = () => {
     if (!activeNote) return;
-    const snippet = activeNote.content.slice(0, 1500);
-    const context = `请结合当前笔记《${activeNote.title || '未命名'}》回答，并保留上下文：\n${snippet}`;
-    setChatInput(prev => (prev ? `${prev}\n\n${context}` : context));
+    const context = getNoteContext(activeNote);
+    const promptPrefix = `请结合当前笔记及其引用内容回答，并保留上下文：\n\n${context}`;
+    setChatInput(prev => (prev ? `${prev}\n\n${promptPrefix}` : promptPrefix));
     setIsChatOpen(true);
   };
 
