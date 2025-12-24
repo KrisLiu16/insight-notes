@@ -434,6 +434,32 @@ const App = () => {
     });
   };
 
+  const getNoteContext = (note: Note): string => {
+    let context = `Title: ${note.title || 'Untitled'}\nTags: ${(note.tags || []).join(', ')}\n\n`;
+
+    // Extract references: note://ID or pure 9-digit ID
+    const refRegex = /(?:note:\/\/|\]\()(\d{9})/g;
+    const matches = Array.from(note.content.matchAll(refRegex));
+    const refIds = new Set(matches.map(m => m[1]));
+
+    if (refIds.size > 0) {
+      context += `--- Referenced Notes (引用内容) ---\n`;
+      refIds.forEach(id => {
+        if (id === note.id) return; // Skip self-reference
+        const refNote = notes.find(n => n.id === id);
+        if (refNote) {
+          // Truncate long content to avoid context limit
+          const snippet = refNote.content.slice(0, 1000) + (refNote.content.length > 1000 ? '...' : '');
+          context += `Reference ID: ${id}\nTitle: ${refNote.title}\nContent:\n${snippet}\n\n`;
+        }
+      });
+      context += `--- End of References ---\n\n`;
+    }
+
+    context += `--- Main Content (文章主体) ---\n${note.content}`;
+    return context;
+  };
+
   const handleAiAnalyze = async () => {
     if (!activeNote) return;
     if (!settings.apiKey && !process.env.API_KEY && !settings.baseUrl?.includes('localhost')) {

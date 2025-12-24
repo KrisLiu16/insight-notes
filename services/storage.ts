@@ -14,7 +14,8 @@ export const DEFAULT_ANALYZE_PROMPT = `Analyze the provided markdown note conten
 2. Write a 1-sentence summary in Chinese.
 Return ONLY JSON.`;
 
-export const DEFAULT_POLISH_PROMPT = `请担任专业的文字编辑。润色以下内容，使其更加通顺、专业、优美，并纠正错别字。
+export const DEFAULT_POLISH_PROMPT = `请担任专业的文字编辑。润色提供的 'Main Content' (文章主体) 部分，使其更加通顺、专业、优美，并纠正错别字。
+如果提供了 'Title'、'Tags' 或 'Referenced Notes'，请将其作为上下文参考，但不要润色这些辅助信息。
 保持原有的 Markdown 格式（标题、代码块、引用等）不变。
 只返回润色后的正文内容，不要包含“好的”、“这是润色后的内容”等任何对话语句。`;
 
