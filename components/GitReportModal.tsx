@@ -36,7 +36,9 @@ const GitReportModal: React.FC<GitReportModalProps> = ({ isOpen, onClose, settin
         loadRepoInfo(path);
       }
     } else {
-      alert('请在桌面端应用中使用此功能');
+      const isElectron = /Electron/.test(navigator.userAgent);
+      const hasWindowDesktop = typeof window.desktop !== 'undefined';
+      alert(`Git 功能需要在桌面端应用中使用。\n\n环境调试信息:\n- UserAgent: ${navigator.userAgent}\n- window.desktop: ${hasWindowDesktop ? 'Available' : 'Missing'}\n- isElectron: ${isElectron}`);
     }
   };
 
