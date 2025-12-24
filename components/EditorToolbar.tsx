@@ -29,18 +29,19 @@ interface EditorToolbarProps {
   canRedo: boolean;
 }
 
-const IdBadge = ({ id }: { id: string }) => {
+const IdBadge = ({ id, title }: { id: string; title: string }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
+    const textToCopy = `[${title || '未命名笔记'}](${id})`;
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Copy failed', err);
       // Fallback
       const textarea = document.createElement('textarea');
-      textarea.value = id;
+      textarea.value = textToCopy;
       document.body.appendChild(textarea);
       textarea.select();
       try {
@@ -59,7 +60,7 @@ const IdBadge = ({ id }: { id: string }) => {
     <button
       onClick={handleCopy}
       className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-[10px] font-mono text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors border border-slate-200"
-      title="点击复制笔记 ID"
+      title="点击复制笔记链接 (Markdown格式)"
     >
       <Fingerprint size={12} />
       <span>{id}</span>
@@ -130,12 +131,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             className="text-lg md:text-xl font-bold text-slate-800 border-none outline-none focus:ring-0 bg-transparent w-full placeholder-slate-300 truncate font-sans"
             placeholder="无标题笔记"
           />
-          <IdBadge id={activeNote.id} />
+          <IdBadge id={activeNote.id} title={activeNote.title} />
         </div>
       ) : (
         <div className="flex items-center gap-2 overflow-hidden">
           <span className="text-lg md:text-xl font-bold text-slate-800 truncate">{activeNote.title}</span>
-          <IdBadge id={activeNote.id} />
+          <IdBadge id={activeNote.id} title={activeNote.title} />
         </div>
       )}
     </div>
@@ -185,7 +186,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className={`flex items-center justify-center p-2 rounded-lg text-xs font-medium transition-all ${
             isAiPolishing ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
           }`}
-          title="AI 润色"
+          title="AI 编辑"
         >
           {isAiPolishing ? <Loader2 size={18} className="animate-spin" /> : <Edit3 size={18} />}
         </button>

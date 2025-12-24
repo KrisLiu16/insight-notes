@@ -496,7 +496,8 @@ const App = () => {
 
     setIsAiPolishing(true);
     try {
-      const polished = await polishContent(activeNote.content, settings.apiKey, settings.customPolishPrompt, settings.baseUrl, settings.model);
+      const context = getNoteContext(activeNote);
+      const polished = await polishContent(context, settings.apiKey, settings.customPolishPrompt, settings.baseUrl, settings.model);
       setPendingPolish(polished);
     } catch (error: any) {
       if (error.message === 'API_KEY_MISSING') {
