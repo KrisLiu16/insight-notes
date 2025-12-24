@@ -10,6 +10,7 @@ export const DEFAULT_MODEL = 'gemini-2.0-flash';
 
 // Default Prompts
 export const DEFAULT_ANALYZE_PROMPT = `Analyze the provided markdown note content.
+If the content contains "Title", "Tags", "Referenced Notes", and "Main Content" sections, prioritize analyzing the "Main Content" but use the other sections for context.
 1. Generate up to 5 relevant tags (keywords).
 2. Write a 1-sentence summary in Chinese.
 Return ONLY JSON.`;

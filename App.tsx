@@ -472,7 +472,8 @@ const App = () => {
 
     setIsAiAnalyzing(true);
     try {
-      const result = await generateTagsAndSummary(activeNote.content, settings.apiKey, settings.customAnalyzePrompt, settings.baseUrl, settings.model);
+      const context = getNoteContext(activeNote);
+      const result = await generateTagsAndSummary(context, settings.apiKey, settings.customAnalyzePrompt, settings.baseUrl, settings.model);
       setPendingAnalyze({ tags: result.tags || [], summary: result.summary });
     } catch (error: any) {
       if (error.message === 'API_KEY_MISSING') {
