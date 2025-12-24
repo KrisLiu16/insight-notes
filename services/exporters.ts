@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeKatex from 'rehype-katex';
+import type { Options as KatexOptions } from 'katex';
 import rehypeStringify from 'rehype-stringify';
 import { AppSettings } from '../types';
 import katexCss from 'katex/dist/katex.min.css?inline';
@@ -112,7 +113,26 @@ const themeCss: Record<MarkdownTheme, string> = {
 };
 
 export const markdownToHtml = async (markdown: string, theme: MarkdownTheme, title?: string) => {
-  const processed = await unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkRehype).use(rehypeKatex).use(rehypeStringify).process(markdown || '');
+  const katexOptions: KatexOptions & { throwOnError?: boolean } = {
+    strict: false,
+    throwOnError: false,
+    trust: true,
+    fleqn: false,
+    macros: {
+      "\\dd": "\\,\\mathrm{d}",
+      "\\EE": "\\mathbb{E}",
+      "\\PP": "\\mathbb{P}",
+      "\\Var": "\\mathrm{Var}",
+      "\\Cov": "\\mathrm{Cov}",
+      "\\sgn": "\\mathrm{sgn}",
+      "\\arg": "\\mathrm{arg}",
+      "\\abs": "\\left\\lvert #1\\right\\rvert",
+      "\\norm": "\\left\\lVert #1\\right\\rVert",
+      "\\vect": "\\mathbf{#1}",
+      "\\degree": "^\\circ",
+    }
+  };
+  const processed = await unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkRehype).use([rehypeKatex, katexOptions]).use(rehypeStringify).process(markdown || '');
   const body = String(processed);
   const themeKey: MarkdownTheme = theme || 'classic';
 

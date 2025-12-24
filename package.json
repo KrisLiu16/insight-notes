@@ -1,20 +1,25 @@
 {
   "name": "insight-notes",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "electron/main.js",
   "author": {
     "name": "Kris",
-    "email": "kris@example.com"
+    "email": "liuzhihao.kris@bytedance.com"
   },
   "description": "Insight Notes - AI powered note app with markdown, Mermaid, KaTeX, multi-theme and exports",
+  "homepage": "https://github.com/KrisLiu16/insight-notes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KrisLiu16/insight-notes.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "electron:dev": "npm run build && electron .",
-    "electron:build": "node scripts/clean-release.js && npm run icon:generate && npm run build && electron-builder",
+    "electron:build": "node scripts/clean-release.js && npm run icon:generate && npm run build && electron-rebuild && electron-builder",
     "icon:generate": "node scripts/generate-icon.js"
   },
   "dependencies": {
@@ -51,6 +56,7 @@
     "autoprefixer": "^10.4.22",
     "electron": "^30.0.9",
     "electron-builder": "^25.1.8",
+    "electron-rebuild": "^3.2.9",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.14",
@@ -91,12 +97,33 @@
       "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
-      "icon": "resources/icon.png",
+      "icon": "resources/icon.ico",
       "target": [
-        "nsis",
-        "zip"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeaderIcon": "resources/icon.ico"
     },
     "linux": {
       "icon": "resources/icon.png",

@@ -151,7 +151,7 @@ if (!gotTheLock) {
       {
         label: '帮助',
         submenu: [
-          { label: '官方网站', click: () => shell.openExternal('https://example.com') },
+          { label: '官方网站', click: () => shell.openExternal('https://github.com/KrisLiu16/insight-notes') },
         ],
       },
     ];

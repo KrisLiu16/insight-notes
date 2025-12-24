@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
 import mermaid from 'mermaid';
+import katex from 'katex';
 
 interface MermaidProps {
   chart: string;
@@ -72,7 +73,8 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
       try {
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
         const { svg } = await mermaid.render(id, chart);
-        if (!canceled) setSvg(svg);
+        const enhanced = enhanceSvgWithMath(svg);
+        if (!canceled) setSvg(enhanced);
       } catch (error) {
         if (!canceled) {
           console.error('Mermaid render error:', error);
@@ -93,5 +95,64 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
     />
   );
 };
+
+function enhanceSvgWithMath(svgSource: string): string {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgSource, 'image/svg+xml');
+    const texts = Array.from(doc.querySelectorAll('text')) as SVGTextElement[];
+    for (const t of texts) {
+      const raw = t.textContent || '';
+      if (!/(\$\$[\s\S]+?\$\$|\$[^$]+\$)/.test(raw)) continue;
+      const x = t.getAttribute('x') || '0';
+      const y = t.getAttribute('y') || '0';
+      const html = renderInlineMathHtml(raw);
+      const fo = doc.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+      fo.setAttribute('x', x);
+      fo.setAttribute('y', String(Number(y) - 12));
+      fo.setAttribute('width', '1');
+      fo.setAttribute('height', '1');
+      fo.setAttribute('style', 'overflow: visible');
+      const div = doc.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+      div.setAttribute('style', 'display:inline-block; white-space:nowrap; transform: translateY(-0.35em);');
+      div.innerHTML = html;
+      fo.appendChild(div);
+      const parent = t.parentNode;
+      if (parent) parent.replaceChild(fo, t);
+    }
+    const serializer = new XMLSerializer();
+    return serializer.serializeToString(doc.documentElement);
+  } catch {
+    return svgSource;
+  }
+}
+
+function renderInlineMathHtml(text: string): string {
+  const parts = [] as string[];
+  const regex = /(\$\$[\s\S]+?\$\$|\$[^$]+\$)/g;
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      parts.push(escapeHtml(text.slice(lastIndex, m.index)));
+    }
+    const token = m[0];
+    const isDisplay = token.startsWith('$$');
+    const expr = token.replace(/^\$\$|\$\$/g, '').replace(/^\$|\$/g, '');
+    try {
+      const rendered = katex.renderToString(expr, { displayMode: isDisplay, throwOnError: false, strict: false, trust: true });
+      parts.push(rendered);
+    } catch {
+      parts.push(escapeHtml(token));
+    }
+    lastIndex = m.index + token.length;
+  }
+  if (lastIndex < text.length) parts.push(escapeHtml(text.slice(lastIndex)));
+  return parts.join('');
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 export default memo(Mermaid);

@@ -3,6 +3,7 @@ import ReactMarkdown, { UrlTransform, defaultUrlTransform } from 'react-markdown
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import type { Options as KatexOptions } from 'katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -166,7 +167,113 @@ const CodeBlock = memo(({ language, codeString, style }: { language: string; cod
 }, (prev, next) => prev.codeString === next.codeString && prev.language === next.language && prev.style === next.style);
 
 const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments = {}, theme = 'classic', showToc = true, onLinkClick, validNoteIds }) => {
-  const deferredContent = useDeferredValue(content);
+  const katexOptions: KatexOptions & { throwOnError?: boolean } = useMemo(() => ({
+    strict: false,
+    throwOnError: false,
+    trust: true,
+    fleqn: false,
+    macros: {
+      "\\dd": "\\,\\mathrm{d}",
+      "\\EE": "\\mathbb{E}",
+      "\\PP": "\\mathbb{P}",
+      "\\Var": "\\mathrm{Var}",
+      "\\Cov": "\\mathrm{Cov}",
+      "\\sgn": "\\mathrm{sgn}",
+      "\\arg": "\\mathrm{arg}",
+      "\\abs": "\\left\\lvert #1\\right\\rvert",
+      "\\norm": "\\left\\lVert #1\\right\\rVert",
+      "\\vect": "\\mathbf{#1}",
+      "\\degree": "^\\circ",
+    }
+  }), []);
+  const processedContent = useMemo(() => {
+    // 简单保护代码块
+    const codeBlockRegex = /(```[\s\S]*?```|`[^`]*`)/g;
+    const placeholders: string[] = [];
+    let protectedText = content.replace(codeBlockRegex, (match) => {
+      placeholders.push(match);
+      return `__CODE_PLACEHOLDER_${placeholders.length - 1}__`;
+    });
+
+    // 保护 LaTeX 内部的括号结构 \left( \right) \left[ \right]
+    const latexStructureRegex = /(\\(?:left|right|big|Big|bigg|Bigg)(?:[\(\)\[\]\|\.]))/g;
+    const latexPlaceholders: string[] = [];
+    protectedText = protectedText.replace(latexStructureRegex, (match) => {
+      latexPlaceholders.push(match);
+      return `__LATEX_STRUCT_${latexPlaceholders.length - 1}__`;
+    });
+
+    // 预处理：Unicode 数学符号转 LaTeX (在非代码块区域)
+    let processed = protectedText
+      .replace(/≈/g, '\\approx ')
+      .replace(/∼/g, '\\sim ')
+      .replace(/≤/g, '\\le ')
+      .replace(/≥/g, '\\ge ')
+      .replace(/×/g, '\\times ')
+      .replace(/÷/g, '\\div ')
+      .replace(/±/g, '\\pm ')
+      .replace(/∞/g, '\\infty ')
+      .replace(/≠/g, '\\neq ')
+      .replace(/μ/g, '\\mu ')
+      .replace(/φ/g, '\\phi ')
+      .replace(/Φ/g, '\\Phi ')
+      .replace(/π/g, '\\pi ')
+      .replace(/θ/g, '\\theta ')
+      .replace(/Ω/g, '\\Omega ')
+      .replace(/ω/g, '\\omega ')
+      .replace(/Δ/g, '\\Delta ')
+      .replace(/δ/g, '\\delta ')
+      .replace(/Σ/g, '\\Sigma ')
+      .replace(/σ/g, '\\sigma ')
+      .replace(/ρ/g, '\\rho ')
+      .replace(/°/g, '\\degree ')
+      .replace(/·/g, '\\cdot ');
+
+    // 修复常见的 LaTeX 语法错误
+    // 修复 \left$ -> \left( (推测用户意图)
+    processed = processed.replace(/\\left\$/g, '\\left(').replace(/\\right\$/g, '\\right)');
+
+    // 纠正错误的 $approx 等写法：将 $approx / approx$ 等裸定界改为 \\approx（不进入公式模式）
+    const bareMathWords = ['approx','le','ge','times','div','pm','infty','neq','sim'];
+    bareMathWords.forEach(w => {
+      const left = new RegExp(`\\$${w}\\b`, 'g');
+      const right = new RegExp(`\\b${w}\\$`, 'g');
+      processed = processed.replace(left, `\\${w}`).replace(right, `\\${w}`);
+    });
+
+    // 替换 LaTeX 格式
+    processed = processed
+      // 标准 LaTeX \[ ... \] -> $$ ... $$
+      .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+      // 标准 LaTeX \( ... \) -> $ ... $
+      .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$')
+      // 容错：[ ... ] 且包含反斜杠 -> $$ ... $$ (排除链接语法 [text](url))
+      .replace(/\[(?!\s*\])((?:[^\]]*\\[^\]]*)+)\](?!\()/g, '$$$$$1$$$$')
+      // 容错：( ... ) 且包含反斜杠 -> $ ... $
+      .replace(/\((?!\s*\))((?:[^)]*\\[^)]*)+)\)/g, '$$$1$$');
+
+    // 移除整行自动包裹，避免将中文正文误判为数学导致“反向渲染”
+
+    const inlineTokens = ['\\approx', '\\le', '\\ge', '\\times', '\\div', '\\pm', '\\infty', '\\neq', '\\sim', '\\mu', '\\phi', '\\Phi', '\\pi', '\\theta', '\\Omega', '\\omega', '\\Delta', '\\delta', '\\Sigma', '\\sigma', '\\rho', '\\degree'];
+    processed = processed.replace(/^.*$/gm, (line) => {
+      if (line.includes('__CODE_PLACEHOLDER_') || line.includes('$$') || line.includes('$')) return line;
+      let replaced = line;
+      inlineTokens.forEach(tok => {
+        replaced = replaced.replace(new RegExp(`(${tok})(?![a-zA-Z])`, 'g'), '$$$1$');
+      });
+      return replaced;
+    });
+
+    // 还原 LaTeX 结构
+    processed = processed.replace(/__LATEX_STRUCT_(\d+)__/g, (_, index) => latexPlaceholders[parseInt(index)]);
+    
+    // 还原代码块
+    processed = processed.replace(/__CODE_PLACEHOLDER_(\d+)__/g, (_, index) => placeholders[parseInt(index)]);
+    
+    return processed;
+  }, [content]);
+
+  const deferredContent = useDeferredValue(processedContent);
   const headings = useMemo(() => {
     const lines = deferredContent.split('\n');
     return lines
@@ -510,7 +617,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, attachments 
       )}
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[[rehypeKatex, katexOptions]]}
         urlTransform={allowDataUrl}
         components={components as any}
       >
