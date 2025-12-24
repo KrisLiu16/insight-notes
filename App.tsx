@@ -85,9 +85,7 @@ const App = () => {
       setIsFullScreen(true);
     }
   };
-  type NoteSnapshot = { note: Note; selection: { start: number; end: number } };
-  const [history, setHistory] = useState<NoteSnapshot[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+
   const [lastSaved, setLastSaved] = useState<number>(Date.now());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pendingAnalyze, setPendingAnalyze] = useState<{ tags: string[]; summary?: string } | null>(null);
@@ -101,17 +99,11 @@ const App = () => {
   const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
   const [isDataMigrationOpen, setIsDataMigrationOpen] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
-  const historyTimerRef = useRef<number | null>(null);
   const aiTimerRef = useRef<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const lastSnapshotKeyRef = useRef<string>('');
   const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const selectionMapRef = useRef<Record<string, { start: number; end: number }>>({});
   const [selectionForNote, setSelectionForNote] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
-  const snapshotKey = (note: Note) =>
-    `${note.id}|${note.title}|${note.content}|${note.category || ''}|${(note.tags || []).join(',')}|${Object.keys(note.attachments || {}).length}`;
-  const undoRef = useRef<() => void>(() => {});
-  const redoRef = useRef<() => void>(() => {});
   const polishRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -131,14 +123,6 @@ const App = () => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !e.isComposing) {
         e.preventDefault();
         polishRef.current();
-      }
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        undoRef.current();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        redoRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -188,7 +172,6 @@ const App = () => {
 - \`Cmd/Ctrl + S\`：保存
 - \`Cmd/Ctrl + Shift + P\`：导出
 - \`Cmd/Ctrl + Enter\`：AI 编辑
-- \`Cmd/Ctrl + Z\` / \`Cmd/Ctrl + Shift + Z\`：撤销 / 重做
 
 ## 视图与布局
 
@@ -216,10 +199,6 @@ const App = () => {
       saveNotes([welcomeNote]);
       setSelectedNoteId(welcomeNote.id);
       setCurrentNote(welcomeNote);
-      const snap: NoteSnapshot = { note: welcomeNote, selection: { start: 0, end: 0 } };
-      setHistory([snap]);
-      setHistoryIndex(0);
-      lastSnapshotKeyRef.current = snapshotKey(welcomeNote);
       selectionMapRef.current[welcomeNote.id] = { start: 0, end: 0 };
       setSelectionForNote({ start: 0, end: 0 });
     }
@@ -228,9 +207,6 @@ const App = () => {
   useEffect(() => {
     if (!selectedNoteId) {
       setCurrentNote(null);
-      setHistory([]);
-      setHistoryIndex(-1);
-      lastSnapshotKeyRef.current = '';
       return;
     }
     const target = notes.find(n => n.id === selectedNoteId);
@@ -238,13 +214,8 @@ const App = () => {
       setCurrentNote(null);
       return;
     }
-    const targetKey = snapshotKey(target);
-    if (currentNote && currentNote.id === target.id && snapshotKey(currentNote) === targetKey) return;
+    if (currentNote && currentNote.id === target.id) return;
     setCurrentNote(target);
-    const snap: NoteSnapshot = { note: target, selection: selectionMapRef.current[target.id] || { start: target.content.length, end: target.content.length } };
-    setHistory([snap]);
-    setHistoryIndex(0);
-    lastSnapshotKeyRef.current = targetKey;
     const sel = selectionMapRef.current[target.id] || { start: target.content.length, end: target.content.length };
     setSelectionForNote(sel);
   }, [selectedNoteId, notes]);
@@ -342,10 +313,6 @@ const App = () => {
     const sel = { start: 0, end: 0 };
     selectionMapRef.current[newNote.id] = sel;
     setSelectionForNote(sel);
-    const snap: NoteSnapshot = { note: newNote, selection: sel };
-    setHistory([snap]);
-    setHistoryIndex(0);
-    lastSnapshotKeyRef.current = snapshotKey(newNote);
   };
 
   const handleUpdateNote = (id: string, updates: Partial<Note>) => {
@@ -377,31 +344,6 @@ const App = () => {
       }
     };
   }, [currentNote]);
-
-  useEffect(() => {
-    if (!currentNote) return;
-    if (historyTimerRef.current) {
-      window.clearTimeout(historyTimerRef.current);
-    }
-    historyTimerRef.current = window.setTimeout(() => {
-      const key = snapshotKey(currentNote);
-      if (key === lastSnapshotKeyRef.current) return;
-      const snapshot: NoteSnapshot = { note: { ...currentNote }, selection: selectionRef.current };
-      setHistory(prev => {
-        const next = prev.slice(0, historyIndex + 1).concat(snapshot);
-        const trimmed = next.slice(-30); // cap history size
-        setHistoryIndex(trimmed.length - 1);
-        return trimmed;
-      });
-      lastSnapshotKeyRef.current = key;
-    }, 300);
-
-    return () => {
-      if (historyTimerRef.current) {
-        window.clearTimeout(historyTimerRef.current);
-      }
-    };
-  }, [currentNote, historyIndex]);
 
   const deleteNote = (id: string) => {
     let nextId = selectedNoteId;
@@ -449,38 +391,6 @@ const App = () => {
     const suggested = `${activeNote.title || 'untitled'}.md`;
     const content = resolveAttachments(activeNote);
     await saveFile(new Blob([content], { type: 'text/markdown' }), { suggestedName: suggested, mime: 'text/markdown' });
-  };
-
-  const undoNote = () => {
-    if (historyIndex <= 0 || !activeNote) return;
-    const prevIndex = historyIndex - 1;
-    const prev = history[prevIndex];
-    if (!prev) return;
-    if (historyTimerRef.current) {
-      window.clearTimeout(historyTimerRef.current);
-    }
-    setHistoryIndex(prevIndex);
-    lastSnapshotKeyRef.current = snapshotKey(prev.note);
-    selectionRef.current = prev.selection;
-    selectionMapRef.current[prev.note.id] = prev.selection;
-    setSelectionForNote(prev.selection);
-    setCurrentNote({ ...prev.note });
-  };
-
-  const redoNote = () => {
-    if (historyIndex >= history.length - 1 || !activeNote) return;
-    const nextIndex = historyIndex + 1;
-    const next = history[nextIndex];
-    if (!next) return;
-    if (historyTimerRef.current) {
-      window.clearTimeout(historyTimerRef.current);
-    }
-    setHistoryIndex(nextIndex);
-    lastSnapshotKeyRef.current = snapshotKey(next.note);
-    selectionRef.current = next.selection;
-    selectionMapRef.current[next.note.id] = next.selection;
-    setSelectionForNote(next.selection);
-    setCurrentNote({ ...next.note });
   };
 
   const handleCopyContent = () => {
@@ -619,10 +529,8 @@ const App = () => {
   };
 
   useEffect(() => {
-    undoRef.current = undoNote;
-    redoRef.current = redoNote;
     polishRef.current = handleAiPolish;
-  }, [undoNote, redoNote, handleAiPolish]);
+  }, [handleAiPolish]);
 
   const applyAnalyze = () => {
     if (!activeNote || !pendingAnalyze) return;
@@ -817,10 +725,6 @@ const App = () => {
             const sel = { start: 0, end: 0 };
             selectionMapRef.current[note.id] = sel;
             setSelectionForNote(sel);
-            const snap: NoteSnapshot = { note: note, selection: sel };
-            setHistory([snap]);
-            setHistoryIndex(0);
-            lastSnapshotKeyRef.current = snapshotKey(note);
             setIsSettingsOpen(false);
         }}
         onOpenMigration={() => {
@@ -936,14 +840,6 @@ const App = () => {
                   selectionRef.current = { start, end };
                   selectionMapRef.current[activeNote.id] = { start, end };
                   setSelectionForNote({ start, end });
-                  setHistory(prev => {
-                    if (historyIndex < 0 || historyIndex >= prev.length) return prev;
-                    const currentSnap = prev[historyIndex];
-                    if (!currentSnap || currentSnap.note.id !== activeNote.id) return prev;
-                    const updated = [...prev];
-                    updated[historyIndex] = { ...currentSnap, selection: { start, end } };
-                    return updated;
-                  });
                 }}
                 markdownTheme={settings.markdownTheme || 'classic'}
                 isReadOnly={false}
